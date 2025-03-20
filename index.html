@@ -1,0 +1,391 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Mesh 配置编辑器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            font-size: 1.5em;
+        }
+        .block {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .flex-item {
+            box-sizing: border-box;
+            padding: 5px;
+        }
+        /* 顶部区块，每个项目占 25% 宽度（4 列） */
+        .top-block .flex-item {
+            flex: 0 0 25%;
+        }
+        /* 数组区块，每个项目自动平均 */
+        .array-block .flex-item {
+            flex: 1;
+        }
+        /* nodes 区块，每行 3 列 */
+        .nodes-block .row {
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        .nodes-block .row .flex-item {
+            flex: 0 0 33.33%;
+        }
+        fieldset {
+            margin: 5px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        legend {
+            font-weight: bold;
+            padding: 0 5px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .btn {
+            margin-left: 5px;
+            padding: 2px 6px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mesh 配置编辑器</h1>
+    <!-- 隐藏域用于提交整个 JSON -->
+    <form id="configForm" method="POST" action="/cgi-bin/rdcfg.cgi" onsubmit="return prepareSubmit();">
+        <div id="formContainer">
+            <!-- 各区块动态生成 -->
+        </div>
+        <input type="hidden" name="new_json" id="new_json">
+    </form>
+    <script>
+        var globalJson = {}; // 全局 JSON 对象
+
+        // 根据 name 和 value 生成简单输入控件
+        function createInput(name, value) {
+            var container = document.createElement("div");
+            container.className = "form-group";
+            var lbl = document.createElement("label");
+            lbl.textContent = name;
+            container.appendChild(lbl);
+            var input;
+            if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+                input = document.createElement("input");
+                input.type = "text";
+                input.name = name;
+                input.value = value;
+            } else {
+                input = document.createElement("textarea");
+                input.name = name;
+                input.rows = 3;
+                input.value = JSON.stringify(value);
+            }
+            container.appendChild(input);
+            return container;
+        }
+
+        // 解析嵌套对象，生成表单控件，name前缀由 parentKey 给出（例如 "appKeys[0]"）
+        function generateForm(obj, parentKey) {
+            var container = document.createElement("div");
+            for (var key in obj) {
+                if (!obj.hasOwnProperty(key)) continue;
+                var fullKey = parentKey ? parentKey + "." + key : key;
+                if (typeof obj[key] === "object" && obj[key] !== null && !Array.isArray(obj[key])) {
+                    var fieldset = document.createElement("fieldset");
+                    var legend = document.createElement("legend");
+                    legend.textContent = fullKey;
+                    fieldset.appendChild(legend);
+                    fieldset.appendChild(generateForm(obj[key], fullKey));
+                    container.appendChild(fieldset);
+                } else if (Array.isArray(obj[key])) {
+                    // 若遇到数组内部对象，不单独展开（可以自行扩展）
+                    container.appendChild(createInput(fullKey, JSON.stringify(obj[key])));
+                } else {
+                    container.appendChild(createInput(fullKey, obj[key]));
+                }
+            }
+            return container;
+        }
+
+        // 生成顶部区块，显示顶层字段和“保存配置”按钮（按钮在隐藏表单中提交）
+        function generateTopBlock(json) {
+            var topFields = ["$schema", "id", "version", "meshUUID", "meshName", "timestamp", "partial"];
+            var container = document.createElement("div");
+            container.className = "block top-block flex-row";
+            topFields.forEach(function(field) {
+                var item = document.createElement("div");
+                item.className = "flex-item";
+                var lbl = document.createElement("label");
+                lbl.textContent = field;
+                item.appendChild(lbl);
+                var input = document.createElement("input");
+                input.type = "text";
+                input.name = field;
+                input.value = (json[field] !== undefined) ? json[field] : "";
+                item.appendChild(input);
+                container.appendChild(item);
+            });
+            return container;
+        }
+
+        // 生成数组区块，增加删除按钮和添加按钮
+        function generateArrayBlock(key, arr) {
+            var block = document.createElement("div");
+            block.className = "block array-block";
+            var title = document.createElement("h2");
+            title.textContent = key;
+            block.appendChild(title);
+            var row = document.createElement("div");
+            row.className = "flex-row";
+            arr.forEach(function(item, index) {
+                var col = document.createElement("div");
+                col.className = "flex-item";
+                var fieldset = document.createElement("fieldset");
+                var legend = document.createElement("legend");
+                legend.textContent = key + "[" + index + "]";
+                fieldset.appendChild(legend);
+                // 删除按钮
+                var delBtn = document.createElement("button");
+                delBtn.type = "button";
+                delBtn.textContent = "删除";
+                delBtn.className = "btn";
+                delBtn.onclick = function() {
+                    deleteArrayElement(key, index);
+                };
+                fieldset.appendChild(delBtn);
+                // 填充该数组项的内容（假设为对象）
+                if (typeof item === "object" && item !== null) {
+                    fieldset.appendChild(generateForm(item, key + "[" + index + "]"));
+                } else {
+                    fieldset.appendChild(createInput(key + "[" + index + "]", item));
+                }
+                col.appendChild(fieldset);
+                row.appendChild(col);
+            });
+            block.appendChild(row);
+            // 添加按钮：点击后在该数组末尾添加一个空对象
+            var addBtn = document.createElement("button");
+            addBtn.type = "button";
+            addBtn.textContent = "添加 " + key;
+            addBtn.className = "btn";
+            addBtn.onclick = function() {
+                addArrayElement(key);
+            };
+            block.appendChild(addBtn);
+            return block;
+        }
+
+        // 生成 provisioners 块（单独一个块，要求在第2个横向块中显示）
+        function generateProvisionersBlock(json) {
+            if (!json.provisioners || !Array.isArray(json.provisioners))
+                return document.createElement("div");
+            var block = document.createElement("div");
+            block.className = "block array-block";
+            var title = document.createElement("h2");
+            title.textContent = "provisioners";
+            block.appendChild(title);
+            var row = document.createElement("div");
+            row.className = "flex-row";
+            json.provisioners.forEach(function(item, index) {
+                var col = document.createElement("div");
+                col.className = "flex-item";
+                var fieldset = document.createElement("fieldset");
+                var legend = document.createElement("legend");
+                legend.textContent = "provisioners[" + index + "]";
+                fieldset.appendChild(legend);
+                var delBtn = document.createElement("button");
+                delBtn.type = "button";
+                delBtn.textContent = "删除";
+                delBtn.className = "btn";
+                delBtn.onclick = function() {
+                    deleteArrayElement("provisioners", index);
+                };
+                fieldset.appendChild(delBtn);
+                fieldset.appendChild(generateForm(item, "provisioners[" + index + "]"));
+                col.appendChild(fieldset);
+                row.appendChild(col);
+            });
+            block.appendChild(row);
+            var addBtn = document.createElement("button");
+            addBtn.type = "button";
+            addBtn.textContent = "添加 provisioners";
+            addBtn.className = "btn";
+            addBtn.onclick = function() {
+                addArrayElement("provisioners");
+            };
+            block.appendChild(addBtn);
+            return block;
+        }
+
+        // 生成 nodes 区块（每行 3 个节点，不要求添加删除操作）
+        function generateNodesBlock(arr) {
+            var block = document.createElement("div");
+            block.className = "block nodes-block";
+            var title = document.createElement("h2");
+            title.textContent = "nodes";
+            block.appendChild(title);
+            for (var i = 0; i < arr.length; i += 3) {
+                var row = document.createElement("div");
+                row.className = "row";
+                for (var j = i; j < i + 3 && j < arr.length; j++) {
+                    var col = document.createElement("div");
+                    col.className = "flex-item";
+                    var fieldset = document.createElement("fieldset");
+                    var legend = document.createElement("legend");
+                    legend.textContent = "nodes[" + j + "]";
+                    fieldset.appendChild(legend);
+                    fieldset.appendChild(generateForm(arr[j], "nodes[" + j + "]"));
+                    col.appendChild(fieldset);
+                    row.appendChild(col);
+                }
+                block.appendChild(row);
+            }
+            return block;
+        }
+
+        // 全局函数：删除数组 arrayKey 中索引为 index 的项
+        function deleteArrayElement(arrayKey, index) {
+            if (globalJson[arrayKey] && Array.isArray(globalJson[arrayKey])) {
+                globalJson[arrayKey].splice(index, 1);
+                renderForm();
+            }
+        }
+
+        // 全局函数：在 globalJson 中指定数组 arrayKey 的末尾添加一个空对象
+        function addArrayElement(arrayKey) {
+            if (globalJson[arrayKey] && Array.isArray(globalJson[arrayKey])) {
+                globalJson[arrayKey].push({});
+                renderForm();
+            }
+        }
+
+        // 从所有输入控件中更新 globalJson（根据输入名称还原值）
+        // 这里采用简单的处理，遍历所有 input/textarea，并利用其 name 属性更新全局 JSON
+        function updateGlobalJsonFromForm() {
+            var inputs = document.querySelectorAll("#formContainer input[type='text'], #formContainer textarea");
+            inputs.forEach(function(input) {
+                var path = input.name;
+                var value = input.value;
+                // 使用 setValueByPath 函数更新 globalJson
+                setValueByPath(globalJson, path, value);
+            });
+        }
+
+        // 根据路径（形如 "appKeys[0].index"）在对象 obj 中设置值
+        function setValueByPath(obj, path, value) {
+            var parts = path.split(".");
+            var current = obj;
+            for (var i = 0; i < parts.length - 1; i++) {
+                // 处理数组部分
+                var m = parts[i].match(/^([^\[]+)\[(\d+)\]$/);
+                if (m) {
+                    var key = m[1], index = parseInt(m[2], 10);
+                    if (!(key in current)) {
+                        current[key] = [];
+                    }
+                    current = current[key];
+                    if (current.length <= index) {
+                        // 填充空对象
+                        current[index] = {};
+                    }
+                    current = current[index];
+                } else {
+                    if (!(parts[i] in current)) {
+                        current[parts[i]] = {};
+                    }
+                    current = current[parts[i]];
+                }
+            }
+            // 最后一级
+            var lastPart = parts[parts.length - 1];
+            var m = lastPart.match(/^([^\[]+)\[(\d+)\]$/);
+            if (m) {
+                var key = m[1], index = parseInt(m[2], 10);
+                if (!(key in current)) {
+                    current[key] = [];
+                }
+                current = current[key];
+                current[index] = value;
+            } else {
+                current[lastPart] = value;
+            }
+        }
+
+        // 渲染整个表单，根据 globalJson 重构界面
+        function renderForm() {
+            var container = document.getElementById("formContainer");
+            container.innerHTML = "";
+            // 顶部区块
+            container.appendChild(generateTopBlock(globalJson));
+            // 将 provisioners 单独放置为第二块
+            if (globalJson.provisioners && Array.isArray(globalJson.provisioners)) {
+                container.appendChild(generateProvisionersBlock(globalJson));
+            }
+            // 其他数组块：netKeys, appKeys, groups, scenes
+            var arrayKeys = ["netKeys", "appKeys", "groups", "scenes"];
+            arrayKeys.forEach(function(key) {
+                if (globalJson[key] && Array.isArray(globalJson[key])) {
+                    container.appendChild(generateArrayBlock(key, globalJson[key]));
+                }
+            });
+            // nodes 块（不支持增删）
+            if (globalJson.nodes && Array.isArray(globalJson.nodes)) {
+                container.appendChild(generateNodesBlock(globalJson.nodes));
+            }
+        }
+
+        // 提交前更新 globalJson，并将其字符串化到隐藏域
+        function prepareSubmit() {
+            updateGlobalJsonFromForm();
+            document.getElementById("new_json").value = JSON.stringify(globalJson, null, 2);
+            return true; // 允许表单提交
+        }
+
+        // 加载配置文件
+        function loadConfig() {
+            var xhr = new XMLHttpRequest();
+            xhr.overrideMimeType("application/json");
+            xhr.open("GET", "prj_cfg.json", true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var cleanText = xhr.responseText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+                            globalJson = JSON.parse(cleanText);
+                            console.log("Loaded JSON:", globalJson);
+                            renderForm();
+                        } catch (e) {
+                            console.error("JSON 解析错误:", e);
+                            document.getElementById("formContainer").innerHTML = "<div id='errorMsg'>JSON 解析错误: " + e + "</div>";
+                        }
+                    } else {
+                        console.error("加载 prj_cfg.json 失败，状态码:", xhr.status);
+                        document.getElementById("formContainer").innerHTML = "<div id='errorMsg'>加载配置文件失败，状态码：" + xhr.status + "</div>";
+                    }
+                }
+            };
+            xhr.send(null);
+        }
+        window.onload = loadConfig;
+    </script>
+</body>
+</html>
+
+
