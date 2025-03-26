@@ -66,11 +66,11 @@
       flex: 1;
       padding: 3px;
     }
-    /* 表格样式，自适应宽度 */
+    /* 表格样式 */
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 5px 0;
+      margin-top: 5px;
       table-layout: auto;
     }
     table th, table td {
@@ -81,11 +81,14 @@
       word-break: break-all;
     }
     table th {
-      background-color: #fffde7;
+      /*background-color: #fffde7;*/
+      background-color: transparent;
+      white-space: nowrap;
     }
     table input {
       border: none;
       padding: 2px;
+      width: 100%;
     }
     /* models 子表样式 */
     .models-subtable {
@@ -102,6 +105,17 @@
     }
     .models-subtable th {
       background-color: #fafafa;
+    }
+    /* 节点索引行醒目显示 */
+    .node-index {
+      background-color: #ffffcc;
+      padding: 4px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    /* Elements 表头与整体一致 */
+    .elem-table thead th {
+      background-color: inherit;
     }
   </style>
 </head>
@@ -122,14 +136,14 @@
     var globalJson = {};
 
     /*******************************************************
-     * 辅助函数：创建 label + input 行
+     * 辅助函数：创建 label + 输入框 行
      *******************************************************/
     function createFieldRow(labelText, fieldName, fieldValue, labelWidth) {
       var row = document.createElement("div");
       row.className = "field-row";
       var lbl = document.createElement("label");
       lbl.textContent = labelText + ":";
-      if(labelWidth) lbl.style.minWidth = labelWidth;
+      if (labelWidth) lbl.style.minWidth = labelWidth;
       row.appendChild(lbl);
       var input = document.createElement("input");
       input.type = "text";
@@ -140,7 +154,7 @@
     }
 
     /*******************************************************
-     * 渲染顶部全局字段和 provisioner 信息
+     * 渲染顶部全局字段和 provisioner 信息（保持原有逻辑）
      *******************************************************/
     function renderCompactTop() {
       var container = document.getElementById("formContainer");
@@ -185,7 +199,8 @@
       container.appendChild(topContainer);
     }
 
-    /*******************************************************
+
+	/*******************************************************
      * Top-level netKeys 数组（调整 key/oldKey 宽度，缩短 index/phase/minSecurity）
      *******************************************************/
     function renderNetKeysBlock() {
@@ -507,7 +522,7 @@
       if (!globalJson.scenes) globalJson.scenes = [];
       globalJson.scenes.push({
         name: "",
-        addresses: [],
+        addresses: [""],
         number: ""
       });
       renderForm();
@@ -518,191 +533,338 @@
       renderForm();
     }
 
+
     /*******************************************************
-     * Nodes 数组（更新后显示完整节点信息）
+     * 渲染 Nodes 数组（更新 nodes 显示部分）
+     * 每个节点显示 8 行属性表格，并在顶部显示索引号及添加/删除按钮
      *******************************************************/
     function renderNodesBlock() {
       var container = document.getElementById("formContainer");
-      var headerDiv = document.createElement("div");
-      headerDiv.style.display = "flex";
-      headerDiv.style.justifyContent = "space-between";
-      headerDiv.style.alignItems = "center";
       var title = document.createElement("h2");
       title.textContent = "Nodes Array:";
-      headerDiv.appendChild(title);
-      var addBtn = document.createElement("button");
-      addBtn.type = "button";
-      addBtn.textContent = "添加 Node";
-      addBtn.onclick = addNode;
-      headerDiv.appendChild(addBtn);
-      container.appendChild(headerDiv);
+      container.appendChild(title);
 
       if (!globalJson.nodes) globalJson.nodes = [];
+
       globalJson.nodes.forEach(function(node, i) {
-        var nodeContainer = document.createElement("div");
-        nodeContainer.className = "node-container";
+        var nodeDiv = document.createElement("div");
+        nodeDiv.className = "node-container";
 
-        // 显示节点基本信息
-        nodeContainer.appendChild(createFieldRow("UUID", "nodes[" + i + "].UUID", node.UUID, "150px"));
-        nodeContainer.appendChild(createFieldRow("unicastAddress", "nodes[" + i + "].unicastAddress", node.unicastAddress, "150px"));
-        nodeContainer.appendChild(createFieldRow("deviceKey", "nodes[" + i + "].deviceKey", node.deviceKey, "150px"));
-        nodeContainer.appendChild(createFieldRow("security", "nodes[" + i + "].security", node.security, "150px"));
-        nodeContainer.appendChild(createFieldRow("configComplete", "nodes[" + i + "].configComplete", node.configComplete, "150px"));
-        nodeContainer.appendChild(createFieldRow("name", "nodes[" + i + "].name", node.name, "150px"));
-        nodeContainer.appendChild(createFieldRow("cid", "nodes[" + i + "].cid", node.cid, "150px"));
-        nodeContainer.appendChild(createFieldRow("pid", "nodes[" + i + "].pid", node.pid, "150px"));
-        nodeContainer.appendChild(createFieldRow("vid", "nodes[" + i + "].vid", node.vid, "150px"));
-        nodeContainer.appendChild(createFieldRow("crpl", "nodes[" + i + "].crpl", node.crpl, "150px"));
-        nodeContainer.appendChild(createFieldRow("features", "nodes[" + i + "].features", node.features ? JSON.stringify(node.features) : "", "150px"));
-        nodeContainer.appendChild(createFieldRow("secureNetworkBeacon", "nodes[" + i + "].secureNetworkBeacon", node.secureNetworkBeacon, "150px"));
-        nodeContainer.appendChild(createFieldRow("defaultTTL", "nodes[" + i + "].defaultTTL", node.defaultTTL, "150px"));
-        nodeContainer.appendChild(createFieldRow("networkTransmit", "nodes[" + i + "].networkTransmit", node.networkTransmit ? JSON.stringify(node.networkTransmit) : "", "150px"));
-        nodeContainer.appendChild(createFieldRow("relayRetransmit", "nodes[" + i + "].relayRetransmit", node.relayRetransmit ? JSON.stringify(node.relayRetransmit) : "", "150px"));
-        nodeContainer.appendChild(createFieldRow("node appKeys", "nodes[" + i + "].appKeys", node.appKeys ? JSON.stringify(node.appKeys) : "", "150px"));
-        nodeContainer.appendChild(createFieldRow("excluded", "nodes[" + i + "].excluded", node.excluded, "150px"));
-        nodeContainer.appendChild(createFieldRow("heartbeatPub", "nodes[" + i + "].heartbeatPub", node.heartbeatPub ? JSON.stringify(node.heartbeatPub) : "", "150px"));
-        nodeContainer.appendChild(createFieldRow("heartbeatSub", "nodes[" + i + "].heartbeatSub", node.heartbeatSub ? JSON.stringify(node.heartbeatSub) : "", "150px"));
+        // 显示节点索引（醒目颜色）
+        var idxLabel = document.createElement("div");
+        idxLabel.className = "node-index";
+        idxLabel.textContent = "[" + i + "]";
+        nodeDiv.appendChild(idxLabel);
 
-        // 显示该节点的 elements 信息（以表格方式展示），调整 index/location/name 宽度
-        var elementsTitle = document.createElement("h3");
-        elementsTitle.textContent = "Elements:";
-        nodeContainer.appendChild(elementsTitle);
-
+        // 节点属性表格，采用编辑型输入框显示
         var table = document.createElement("table");
-        var thead = document.createElement("thead");
-        var headerRow = document.createElement("tr");
-        ["序号", "index", "location", "name", "models", "操作"].forEach(function(text) {
-          var th = document.createElement("th");
-          th.textContent = text;
-          headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
-        var tbody = document.createElement("tbody");
-        if (!node.elements) node.elements = [];
-        node.elements.forEach(function(element, j) {
+        table.style.borderCollapse = "collapse";
+
+        // 辅助函数：生成一行(6列)
+        // 列宽：16ch, 60ch, 11ch, 6ch, 16ch, 12ch
+        function createRow(c1, c2, c3, c4, c5, c6) {
           var tr = document.createElement("tr");
-          // 序号
-          var tdSeq = document.createElement("td");
-          tdSeq.textContent = "[" + j + "]:";
-          tr.appendChild(tdSeq);
-          // index（6ch）
-          var tdIndex = document.createElement("td");
-          var inputIndex = document.createElement("input");
-          inputIndex.type = "text";
-          inputIndex.name = "nodes[" + i + "].elements[" + j + "].index";
-          inputIndex.value = element.index !== undefined ? element.index : "";
-          inputIndex.style.width = "6ch";
-          tdIndex.appendChild(inputIndex);
-          tr.appendChild(tdIndex);
-          // location（10ch）
-          var tdLocation = document.createElement("td");
-          var inputLocation = document.createElement("input");
-          inputLocation.type = "text";
-          inputLocation.name = "nodes[" + i + "].elements[" + j + "].location";
-          inputLocation.value = element.location !== undefined ? element.location : "";
-          inputLocation.style.width = "10ch";
-          tdLocation.appendChild(inputLocation);
-          tr.appendChild(tdLocation);
-          // name（16ch）
-          var tdName = document.createElement("td");
-          var inputName = document.createElement("input");
-          inputName.type = "text";
-          inputName.name = "nodes[" + i + "].elements[" + j + "].name";
-          inputName.value = element.name !== undefined ? element.name : "";
-          inputName.style.width = "16ch";
-          tdName.appendChild(inputName);
-          tr.appendChild(tdName);
-          // models 子表
-          var tdModels = document.createElement("td");
-          tdModels.appendChild(createModelsSubtable(element, i, j));
-          tr.appendChild(tdModels);
-          // 删除 element 操作
-          var tdOp = document.createElement("td");
-          var delBtn = document.createElement("button");
-          delBtn.type = "button";
-          delBtn.textContent = "删除 element";
-          delBtn.onclick = function() { deleteElement(i, j); };
-          tdOp.appendChild(delBtn);
-          tr.appendChild(tdOp);
-          tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        nodeContainer.appendChild(table);
 
-        var addElementBtn = document.createElement("button");
-        addElementBtn.type = "button";
-        addElementBtn.textContent = "添加 element";
-        addElementBtn.onclick = function() { addElement(i); };
-        nodeContainer.appendChild(addElementBtn);
+          var td1 = document.createElement("td");
+          td1.style.width = "16ch";
+          td1.textContent = c1 || "";
+          tr.appendChild(td1);
 
-        var delNodeBtn = document.createElement("button");
-        delNodeBtn.type = "button";
-        delNodeBtn.textContent = "删除 Node";
-        delNodeBtn.onclick = function() { deleteNode(i); };
-        nodeContainer.appendChild(delNodeBtn);
+          var td2 = document.createElement("td");
+          td2.style.width = "60ch";
+          var input2 = document.createElement("input");
+          input2.type = "text";
+          input2.value = c2 || "";
+          input2.name = "nodes[" + i + "]." + c1.toLowerCase();
+          td2.appendChild(input2);
+          tr.appendChild(td2);
 
-        container.appendChild(nodeContainer);
-      });
-    }
+          var td3 = document.createElement("td");
+          td3.style.width = "11ch";
+          td3.textContent = c3 || "";
+          tr.appendChild(td3);
+
+          var td4 = document.createElement("td");
+          td4.style.width = "6ch";
+          var input4 = document.createElement("input");
+          input4.type = "text";
+          input4.value = c4 || "";
+          input4.name = "nodes[" + i + "]." + c3.toLowerCase();
+          td4.appendChild(input4);
+          tr.appendChild(td4);
+
+          var td5 = document.createElement("td");
+          td5.style.width = "16ch";
+          td5.textContent = c5 || "";
+          tr.appendChild(td5);
+
+          var td6 = document.createElement("td");
+          td6.style.width = "12ch";
+          var input6 = document.createElement("input");
+          input6.type = "text";
+          input6.value = c6 || "";
+          input6.name = "nodes[" + i + "]." + c5.toLowerCase();
+          td6.appendChild(input6);
+          tr.appendChild(td6);
+
+          return tr;
+        }
+
+        // 行1：name, cid, UnicastAddress
+        table.appendChild(createRow("name", node.name || "", "cid", node.cid || "", "UnicastAddress", node.unicastAddress || ""));
+        // 行2：UUID, pid, security
+        table.appendChild(createRow("UUID", node.UUID || "", "pid", node.pid || "", "security", node.security || ""));
+        // 行3：features, vid, configComplete
+        table.appendChild(createRow("features", node.features ? JSON.stringify(node.features) : "", "vid", node.vid || "", "configComplete", node.configComplete || ""));
+        // 行4：deviceKey, crpl, secureNetworkbeacon
+        table.appendChild(createRow("deviceKey", node.deviceKey || "", "crpl", node.crpl || "", "secureNetworkbeacon", node.secureNetworkBeacon || ""));
+        // 行5：networkTransmit, defaultTTL, excluded
+        //table.appendChild(createRow("networkTransmit", node.networkTransmit ? JSON.stringify(node.networkTransmit) : "", "defaultTTL", node.defaultTTL || "", "excluded", node.excluded || ""));
+		table.appendChild(createRow(
+    	"networkTransmit", node.networkTransmit ? JSON.stringify(node.networkTransmit) : "",
+    	"defaultTTL", node.defaultTTL || "",
+    	"excluded", node.excluded !== undefined ? (node.excluded ? "true" : "false") : ""
+		));
+
+        // 行6：relayRetransmit 与 heartbeatSub     
+        var tr6 = document.createElement("tr");        
+		var td61 = document.createElement("td");        
+		td61.style.width = "16ch";        
+		td61.textContent = "relayRetransmit";
+		tr6.appendChild(td61);        
+
+		var td62 = document.createElement("td");
+		td62.style.width = "60ch";
+		var inputRelay = document.createElement("input");
+		inputRelay.type = "text";
+		inputRelay.name = "nodes[" + i + "].relayRetransmit";
+		inputRelay.value = node.relayRetransmit ? JSON.stringify(node.relayRetransmit) : "";
+		td62.appendChild(inputRelay);
+		tr6.appendChild(td62);
+
+		var td63 = document.createElement("td");
+		td63.style.width = "11ch";
+		td63.textContent = "heartbeatSub";
+		tr6.appendChild(td63);
+		
+		var td64 = document.createElement("td");
+		td64.colSpan = 3;
+		td64.style.width = "34ch";
+		var inputHbSub = document.createElement("input");
+		inputHbSub.type = "text";
+		inputHbSub.name = "nodes[" + i + "].heartbeatSub";
+		inputHbSub.value = node.heartbeatSub ? JSON.stringify(node.heartbeatSub) : "";
+		td64.appendChild(inputHbSub);
+		tr6.appendChild(td64);
+		
+		table.appendChild(tr6);        
+		// 行7：heartbeatPub
+		//table.appendChild(createRow("heartbeatPub", node.heartbeatPub ? JSON.stringify(node.heartbeatPub) : "", "", "", "", ""));
+		var tr7 = document.createElement("tr");
+
+		// 第一列：heartbeatPub 标签
+		var td71 = document.createElement("td");
+		td71.textContent = "heartbeatPub";
+		tr7.appendChild(td71);
+
+		// 第二列：heartbeatPub 的输入框，占 3 列
+		var td72 = document.createElement("td");
+		td72.colSpan = 3;  // 让输入框横跨 3 列，避免显示空列
+
+		var inputHbPub = document.createElement("input");
+		inputHbPub.type = "text";
+		inputHbPub.style.width = "100%";
+		inputHbPub.name = "nodes[" + i + "].heartbeatPub";
+		inputHbPub.value = node.heartbeatPub ? JSON.stringify(node.heartbeatPub) : "";
+		td72.appendChild(inputHbPub);
+		tr7.appendChild(td72);
+
+		// 直接跳过第 4 列（index=3）和第 6 列（index=5），不创建它们
+
+		table.appendChild(tr7);
+
+		// 行8：跨6列显示 node appKeys  
+		var tr8 = document.createElement("tr");
+
+		// 第一列：仅显示 "node appKeys:"
+		var tdLabel = document.createElement("td");
+		tdLabel.textContent = "node appKeys";
+		tr8.appendChild(tdLabel);
+
+		// 第二列（跨 5 列）：输入框，需要对齐到上面的输入框位置
+		var tdInput = document.createElement("td");
+		tdInput.colSpan = 5;  // 让输入框跨 5 列，确保对齐
+
+		var inputAppKeys = document.createElement("input");
+		inputAppKeys.type = "text";
+		inputAppKeys.style.width = "100%";  // 让输入框占满整个单元格
+		inputAppKeys.name = "nodes[" + i + "].appKeys";
+		inputAppKeys.value = node.appKeys ? JSON.stringify(node.appKeys) : "[]";
+
+		tdInput.appendChild(inputAppKeys);
+		tr8.appendChild(tdInput);
+		table.appendChild(tr8);
+
+
+		// 行8：跨6列显示 node netKeys  
+		var tr9 = document.createElement("tr");
+		// 第一列：仅显示 "node netKeys:"
+		var tdLabel2 = document.createElement("td");
+		tdLabel2.textContent = "node netKeys";
+		tr9.appendChild(tdLabel2);
+
+		// 第二列（跨 5 列）：输入框，需要对齐到上面的输入框位置
+		var tdInput2 = document.createElement("td");
+		tdInput2.colSpan = 5;  // 让输入框跨 5 列，确保对齐
+
+		var inputNetKeys = document.createElement("input");
+		inputNetKeys.type = "text";
+		inputNetKeys.style.width = "100%";  // 让输入框占满整个单元格
+		inputNetKeys.name = "nodes[" + i + "].netKeys";
+		inputNetKeys.value = node.netKeys ? JSON.stringify(node.netKeys) : "[]";
+
+		tdInput2.appendChild(inputNetKeys);
+		tr9.appendChild(tdInput2);
+		table.appendChild(tr9);
+
+		
+		nodeDiv.appendChild(table);
+
+		
+		// Elements 部分（保持原有逻辑不变）
+		var elemTitle = document.createElement("h3");
+		elemTitle.textContent = "Elements:";
+		nodeDiv.appendChild(elemTitle);
+		var elemTable = document.createElement("table");
+		var theadElem = document.createElement("thead");
+		var headerRowElem = document.createElement("tr");
+		["序号", "index", "location", "name", "models", "操作"].forEach(function(txt){
+			var th = document.createElement("th");
+			th.textContent = txt;
+			if(txt === "序号") { th.style.width = "4ch"; }
+			if(txt === "index") { th.style.width = "6ch"; }
+			if(txt === "location") { th.style.width = "10ch"; }
+			if(txt === "name") { th.style.width = "16ch"; }
+			headerRowElem.appendChild(th);        });
+			theadElem.appendChild(headerRowElem);
+			elemTable.appendChild(theadElem);
+			var tbodyElem = document.createElement("tbody");
+			if (!node.elements) node.elements = [];
+			node.elements.forEach(function(el, j){
+				var trElem = document.createElement("tr");
+				var tdSeq = document.createElement("td");
+				tdSeq.textContent = "[" + j + "]:";
+				trElem.appendChild(tdSeq);
+				var tdIndex = document.createElement("td");
+				var inIndex = document.createElement("input");
+				inIndex.type = "text";
+				inIndex.name = "nodes[" + i + "].elements[" + j + "].index";
+				inIndex.value = el.index || "";
+				inIndex.style.width = "6ch";
+				tdIndex.appendChild(inIndex);
+				trElem.appendChild(tdIndex);
+				var tdLoc = document.createElement("td");
+				var inLoc = document.createElement("input");
+				inLoc.type = "text";
+				inLoc.name = "nodes[" + i + "].elements[" + j + "].location";
+				inLoc.value = el.location || "";
+				inLoc.style.width = "10ch";
+				tdLoc.appendChild(inLoc);
+				trElem.appendChild(tdLoc);
+				var tdName = document.createElement("td");
+				var inName = document.createElement("input");
+				inName.type = "text";
+				inName.name = "nodes[" + i + "].elements[" + j + "].name";
+				inName.value = el.name || "";
+				inName.style.width = "16ch";
+				tdName.appendChild(inName);
+				trElem.appendChild(tdName);
+				var tdModels = document.createElement("td");
+				tdModels.appendChild(createModelsSubtable(el, i, j));
+				trElem.appendChild(tdModels);
+				var tdOp = document.createElement("td");
+				var delBtn = document.createElement("button");
+				delBtn.type = "button";
+				delBtn.textContent = "删除element";
+				delBtn.onclick = function() { deleteElement(i, j); };
+				tdOp.appendChild(delBtn);
+				trElem.appendChild(tdOp);
+				tbodyElem.appendChild(trElem);
+				});
+				elemTable.appendChild(tbodyElem);
+				nodeDiv.appendChild(elemTable);
+
+	var addElemBtn = document.createElement("button");
+	addElemBtn.type = "button";
+	addElemBtn.textContent = "添加 element";
+	addElemBtn.onclick = function() { addElement(i); };
+	nodeDiv.appendChild(addElemBtn);
+
+	var delNodeBtn = document.createElement("button");
+	delNodeBtn.type = "button";
+	delNodeBtn.textContent = "删除 Node";
+	delNodeBtn.onclick = function() { deleteNode(i); };
+	nodeDiv.appendChild(delNodeBtn);
+	container.appendChild(nodeDiv);
+	});
+	}
 
     /*******************************************************
-     * models 子表生成函数（调整 modelId 为 12ch，其余字段宽度增大）
+     * models 子表生成函数（保持原有逻辑）
      *******************************************************/
     function createModelsSubtable(element, nodeIndex, elementIndex) {
       var container = document.createElement("div");
       if (!element.models) element.models = [];
       var subTable = document.createElement("table");
       subTable.className = "models-subtable";
-      var thead = document.createElement("thead");
-      var headerRow = document.createElement("tr");
-      ["modelId", "subscribe", "publish", "bind", "操作"].forEach(function(text) {
+      var theadModels = document.createElement("thead");
+      var headerRowModels = document.createElement("tr");
+      ["modelId", "subscribe", "publish", "bind", "操作"].forEach(function(txt) {
         var th = document.createElement("th");
-        th.textContent = text;
-        headerRow.appendChild(th);
+        th.textContent = txt;
+        if(txt === "modelId") { th.style.width = "10ch"; }
+        if(txt === "subscribe") { th.style.width = "32ch"; }
+        if(txt === "publish") { th.style.width = "48ch"; }
+        if(txt === "bind") { th.style.width = "28ch"; }
+        headerRowModels.appendChild(th);
       });
-      thead.appendChild(headerRow);
-      subTable.appendChild(thead);
-      var tbody = document.createElement("tbody");
+      theadModels.appendChild(headerRowModels);
+      subTable.appendChild(theadModels);
+      var tbodyModels = document.createElement("tbody");
       element.models.forEach(function(m, modelIdx) {
         var tr = document.createElement("tr");
-        // modelId（12ch）
         var tdModelId = document.createElement("td");
         var inModelId = document.createElement("input");
         inModelId.type = "text";
         inModelId.name = "nodes[" + nodeIndex + "].elements[" + elementIndex + "].models[" + modelIdx + "].modelId";
-        inModelId.value = m.modelId !== undefined ? m.modelId : "";
+        inModelId.value = m.modelId || "";
         inModelId.style.width = "10ch";
         tdModelId.appendChild(inModelId);
         tr.appendChild(tdModelId);
-
         var tdSubscribe = document.createElement("td");
         var inSubscribe = document.createElement("input");
         inSubscribe.type = "text";
         inSubscribe.name = "nodes[" + nodeIndex + "].elements[" + elementIndex + "].models[" + modelIdx + "].subscribe";
-        inSubscribe.value = m.subscribe !== undefined ? m.subscribe : "";
-        inSubscribe.style.width = "32ch";
+        inSubscribe.value = m.subscribe || "";
+        inSubscribe.style.width = "36ch";
         tdSubscribe.appendChild(inSubscribe);
         tr.appendChild(tdSubscribe);
-
         var tdPublish = document.createElement("td");
         var inPublish = document.createElement("input");
         inPublish.type = "text";
         inPublish.name = "nodes[" + nodeIndex + "].elements[" + elementIndex + "].models[" + modelIdx + "].publish";
         inPublish.value = m.publish !== undefined ? (typeof m.publish === "object" ? JSON.stringify(m.publish) : m.publish) : "";
-        inPublish.style.width = "96ch";
+        inPublish.style.width = "84ch";
         tdPublish.appendChild(inPublish);
         tr.appendChild(tdPublish);
-
         var tdBind = document.createElement("td");
         var inBind = document.createElement("input");
         inBind.type = "text";
         inBind.name = "nodes[" + nodeIndex + "].elements[" + elementIndex + "].models[" + modelIdx + "].bind";
         inBind.value = m.bind !== undefined ? (Array.isArray(m.bind) ? JSON.stringify(m.bind) : m.bind) : "";
-        inBind.style.width = "16ch";
+        inBind.style.width = "28ch";
         tdBind.appendChild(inBind);
         tr.appendChild(tdBind);
-        // 删除 model 操作
         var tdOp = document.createElement("td");
         var delBtn = document.createElement("button");
         delBtn.type = "button";
@@ -710,9 +872,9 @@
         delBtn.onclick = function() { deleteModel(element, modelIdx); };
         tdOp.appendChild(delBtn);
         tr.appendChild(tdOp);
-        tbody.appendChild(tr);
+        tbodyModels.appendChild(tr);
       });
-      subTable.appendChild(tbody);
+      subTable.appendChild(tbodyModels);
       var addModelBtn = document.createElement("button");
       addModelBtn.type = "button";
       addModelBtn.textContent = "添加 model";
@@ -722,16 +884,28 @@
       return container;
     }
 
+///*
     function addModel(element) {
       if (!element.models) element.models = [];
+
+  // Get the subscribe input value and split it into an array
+  //let subscribeValue = document.querySelector(`#subscribe-input`).value.trim();
+  
+  // Split by spaces or other delimiters if necessary
+  //let subscribeArray = subscribeValue ? subscribeValue.split(/\s+/) : [];
+	  
       element.models.push({
-        modelId: "",
-        subscribe: "",
-        publish: "",
-        bind: ""
+        modelId: "SIGModID",
+        subscribe: "[subAddr]",
+        publish: {"address":"","index":0,"ttl":8,"period":{"numberOfSteps":8,"resolution":10000},"retransmit":{"count":1,"interval":100},"credentials":1},
+        bind: "[idxAppKey]"
       });
       renderForm();
     }
+//*/
+
+
+
 
     function deleteModel(element, modelIdx) {
       if (element.models && element.models.length > modelIdx) {
@@ -746,25 +920,26 @@
     function addNode() {
       if (!globalJson.nodes) globalJson.nodes = [];
       globalJson.nodes.push({
-        UUID: "",
-        unicastAddress: "",
-        deviceKey: "",
-        security: "",
-        configComplete: "",
-        name: "",
-        cid: "",
-        pid: "",
-        vid: "",
-        crpl: "",
-        features: {},
-        secureNetworkBeacon: "",
-        defaultTTL: "",
-        networkTransmit: {},
-        relayRetransmit: {},
-        appKeys: [],
-        excluded: "",
-        heartbeatPub: {},
-        heartbeatSub: {},
+        UUID: "UUID Of this node",
+        unicastAddress: "UniCastAddr",
+        deviceKey: "devKey for this node",
+        security: "secure",
+        netKeys: [{"index":0,"updated":false}],
+        configComplete: "false",
+        name: "name for node",
+        cid: "0",
+        pid: "0",
+        vid: "0",
+        crpl: "0",
+        features: {"relay":0,"proxy":0,"friend":0,"lowPower":0},
+        secureNetworkBeacon: "true",
+        defaultTTL: "8",
+        networkTransmit: {"count":0,"interval":0},
+        relayRetransmit: {"count":0,"interval":0},
+        appKeys: [{"index":0,"updated":false}],
+        excluded: "false",
+        heartbeatPub: {"address":"","period":0,"ttl":8,"index":0,"features":["proxy","relay"]},
+        heartbeatSub: {"source":"","destination":""},
         elements: []
       });
       renderForm();
@@ -782,9 +957,9 @@
         globalJson.nodes[nodeIndex].elements = [];
       }
       globalJson.nodes[nodeIndex].elements.push({
-        index: "",
-        location: "",
-        name: "",
+        index: "0~255",
+        location: "0",
+        name: "elementName",
         models: []
       });
       renderForm();
@@ -813,25 +988,28 @@
       var parts = path.split(".");
       var current = obj;
       for (var i = 0; i < parts.length - 1; i++) {
+        //var arrayMatch = parts[i].match(/^([^\\[]+)\\[(\\d+)\\]$/);
         var arrayMatch = parts[i].match(/^([^\[]+)\[(\d+)\]$/);
         if (arrayMatch) {
           var key = arrayMatch[1];
-          var index = parseInt(arrayMatch[2], 10);
+          var idx = parseInt(arrayMatch[2], 10);
           if (!current[key]) current[key] = [];
-          if (!current[key][index]) current[key][index] = {};
-          current = current[key][index];
+          if (!current[key][idx]) current[key][idx] = {};
+          current = current[key][idx];
         } else {
           if (!current[parts[i]]) current[parts[i]] = {};
           current = current[parts[i]];
         }
       }
       var lastPart = parts[parts.length - 1];
+      //var lastArrayMatch = lastPart.match(/^([^\\[]+)\\[(\\d+)\\]$/);
       var lastArrayMatch = lastPart.match(/^([^\[]+)\[(\d+)\]$/);
+	  
       if (lastArrayMatch) {
         var key = lastArrayMatch[1];
-        var index = parseInt(lastArrayMatch[2], 10);
+        var idx = parseInt(lastArrayMatch[2], 10);
         if (!current[key]) current[key] = [];
-        current[key][index] = parseMaybeJSON(value);
+        current[key][idx] = parseMaybeJSON(value);
       } else {
         current[lastPart] = parseMaybeJSON(value);
       }
@@ -897,6 +1075,7 @@
     }
     window.onload = loadConfig;
   </script>
+  <button type="button" onclick="addNode();">添加 Node</button>
 </body>
 </html>
 
