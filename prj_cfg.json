@@ -60,115 +60,73 @@
 			"allocatedUnicastRange":	[{
 					"highAddress":	"01FF",
 					"lowAddress":	"0100"
-				},{
-                    "lowAddress":   "0301",
-                    "highAddress":  "03FF"
-                }],
+				}, {
+					"lowAddress":	"0301",
+					"highAddress":	"03FF"
+				}],
 			"allocatedSceneRange":	[{
 					"firstScene":	"0001",
 					"lastScene":	"0040"
 				}]
 		}],
 	"nodes":	[{
-			"UUID":	"559B8C97-32A3-45B6-9149-4865D288CBF3",
-			"unicastAddress":	"0002",
-			"deviceKey":	"0FE48D03E41D26E5C5EA327A55E8A218",
+			"UUID":	"UUID Of this node",
+			"unicastAddress":	"UniCastAddr",
+			"deviceKey":	"devKey for this node",
 			"security":	"secure",
 			"netKeys":	[{
 					"index":	0,
 					"updated":	false
 				}],
-			"configComplete":	true,
-			"name":	"Bedroom Light Switch",
-			"cid":	"0003",
-			"pid":	"0003",
-			"vid":	"0003",
-			"crpl":	"0003",
+			"configComplete":	"false",
+			"name":	"name for node",
+			"cid":	"0x7778",
+			"pid":	"0x243",
+			"vid":	7,
+			"crpl":	100,
 			"features":	{
-				"relay":	2,
-				"proxy":	2,
-				"friend":	2,
-				"lowPower":	1
+				"relay":	0,
+				"proxy":	0,
+				"friend":	0,
+				"lowPower":	0
 			},
-			"secureNetworkBeacon":true,
-			"defaultTTL":	3,
+			"secureNetworkBeacon":	"true",
+			"defaultTTL":	"8",
 			"networkTransmit":	{
-				"count":	2,
-				"interval":	20
+				"count":	0,
+				"interval":	0
 			},
 			"relayRetransmit":	{
-			"count": 2,
-			"interval":	20
+				"count":	0,
+				"interval":	0
 			},
 			"appKeys":	[{
 					"index":	0,
 					"updated":	false
 				}],
-			"elements":	[{
-					"index":	0,
-					"location":	"0001",
-					"models":	[{
-							"modelId":	"0000",
-							"bind":	[],
-							"subscribe":	[]
-						}, {
-							"modelId":	"0002",
-							"bind":	[],
-							"subscribe":	[]
-						}, {
-							"modelId":	"0004",
-							"publish":	{
-								"address":	"C023",
-								"index":	0,
-								"ttl":	7,
-								"period":	{
-									"numberOfSteps":	9,
-									"resolution":	10000
-								},
-								"retransmit":	{
-									"count":	2,
-									"interval":	250
-								},
-								"credentials":	1
-							},
-							"bind":	[0],
-							"subscribe":	[]
-						}]
-				}, {
-					"index":	1,
-					"location":	"0002",
-					"models":	[{
-							"modelId":	"0004",
-							"publish":	{
-								"address":	"C024",
-								"index":	0,
-								"ttl":	7,
-								"period":	{
-									"numberOfSteps":	9,
-									"resolution":	10000
-								},
-								"retransmit":	{
-									"count":	2,
-									"interval":	100
-								},
-								"credentials":	1
-							},
-							"bind":	[0],
-							"subscribe":	[]
-						}]
-				}],
-			"excluded":	false,
-			"heartbeatPub": {
-			"address" :  "",
-			"period" : 0,
-			"ttl": 0,
-			"index": 0,
-			"features" : [""]
+			"excluded":	true,
+			"heartbeatPub":	{
+				"address":	"",
+				"period":	0,
+				"ttl":	8,
+				"index":	0,
+				"features":	["proxy", "relay"]
 			},
-			"heartbeatSub": {
-			"source":  "",
-			"destination": ""
-			}
+			"heartbeatSub":	{
+				"source":	"",
+				"destination":	""
+			},
+			"elements":	[],
+			"unicastaddress":	"0x1122",
+			"uuid":	"UUID Of this node",
+			"configcomplete":	false,
+			"devicekey":	"devKey for this node",
+			"securenetworkbeacon":	true,
+			"networktransmit":	{
+				"count":	0,
+				"interval":	0
+			},
+			"defaultttl":	8
 		}],
 	"groups":	[{
 			"name":	"Bedroom",
