@@ -3,34 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cJSON.h"
-
-
-#include	<stdint.h>
-#include    <unistd.h>      
-#include	<ctype.h>	    
-#include 	<stdbool.h>		
-
-/*
-
-typedef struct mesh_cfgdb_profile mesh_cfgdb_prof_t;
-enum
-{
-    e_mcdp_str_baseLen      = 16,
-};
-struct  mesh_cfgdb_profile 
-{
-    char        schema[64];
-    char        id[128];
-    char        version[16];
-    char        meshUUID[16+1];
-    char        meshName[32];
-    char        timestamp[24];
-    bool        partial;
-    
-};
-
-*/
-
+#include <stdint.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <stdbool.h>
 
 
 
@@ -123,7 +99,6 @@ int main(void)
     char *encoded = p + strlen("new_json=");
     char *decoded = url_decode(encoded);
 
-    /* 利用 cJSON 校验 JSON 数据 */
     cJSON *root = cJSON_Parse(decoded);
     if (root == NULL)
     {
@@ -167,4 +142,5 @@ int main(void)
     free(post_data);
     return 0;
 }
+
 
