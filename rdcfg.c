@@ -59,7 +59,7 @@ char *url_decode(const char *src)
 
 int main(void)
 {
-    printf("Content-Type: text/html; charset=UTF-8\r\n\r\n");
+    printf("Content-Type: application/json; charset=UTF-8\r\n\r\n");
 
     char *len_str = getenv("CONTENT_LENGTH");
     int len = 0;
@@ -69,19 +69,19 @@ int main(void)
     }
     if (len <= 0)
     {
-        printf("<html><body><h1>错误：无 POST 数据</h1></body></html>");
+        printf("{\"error\":\"No POST data received\"}");
         return 1;
     }
 
     char *post_data = malloc(len + 1);
     if (!post_data)
     {
-        printf("<html><body><h1>错误：内存分配失败</h1></body></html>");
+        printf("{\"error\":\"Memory allocation failed\"}");
         return 1;
     }
     if (fread(post_data, 1, len, stdin) != (size_t)len)
     {
-        printf("<html><body><h1>错误：读取 POST 数据失败</h1></body></html>");
+        printf("{\"error\":\"Failed to read POST data\"}");
         free(post_data);
         return 1;
     }
@@ -90,7 +90,7 @@ int main(void)
     char *p = strstr(post_data, "new_json=");
     if (!p)
     {
-        printf("<html><body><h1>错误：未找到 new_json 参数</h1></body></html>");
+        printf("{\"error\":\"new_json parameter not found\"}");
         free(post_data);
         return 1;
     }
@@ -100,7 +100,7 @@ int main(void)
     cJSON *root = cJSON_Parse(decoded);
     if (root == NULL)
     {
-        printf("<html><body><h1>错误：无效的 JSON 数据</h1></body></html>");
+        printf("{\"error\":\"Invalid JSON data\"}");
         free(decoded);
         free(post_data);
         return 1;
@@ -108,7 +108,7 @@ int main(void)
     char *formatted_json = cJSON_Print(root);
     if (!formatted_json)
     {
-        printf("<html><body><h1>错误：无法格式化 JSON 数据</h1></body></html>");
+        printf("{\"error\":\"Failed to format JSON data\"}");
         cJSON_Delete(root);
         free(decoded);
         free(post_data);
@@ -120,13 +120,11 @@ int main(void)
     {
         fputs(formatted_json, fp);
         fclose(fp);
-        printf("<html><body><h1>配置更新成功。</h1>");
-        printf("<a href=\"/index.html\">返回配置编辑器</a>");
-        printf("</body></html>");
+        printf("{\"message\":\"Configuration updated successfully\"}");
     }
     else
     {
-        printf("<html><body><h1>错误：无法写入配置文件</h1></body></html>");
+        printf("{\"error\":\"Failed to write configuration file\"}");
         free(formatted_json);
         cJSON_Delete(root);
         free(decoded);
@@ -140,5 +138,4 @@ int main(void)
     free(post_data);
     return 0;
 }
-
 
