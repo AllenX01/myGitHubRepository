@@ -8,8 +8,6 @@
 #include <ctype.h>
 #include <stdbool.h>
 
-
-
 char from_hex(char ch)
 {
     if (ch >= '0' && ch <= '9')
