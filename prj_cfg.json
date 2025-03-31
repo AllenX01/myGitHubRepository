@@ -70,63 +70,86 @@
 				}]
 		}],
 	"nodes":	[{
-			"UUID":	"UUID Of this node",
-			"unicastAddress":	"UniCastAddr",
-			"deviceKey":	"devKey for this node",
+			"UUID":	"559B8C97-32A3-45B6-9149-4865D288CBF3",
+			"unicastAddress":	"0002",
+			"deviceKey":	"0FE48D03E41D26E5C5EA327A55E8A218",
 			"security":	"secure",
 			"netKeys":	[{
-					"index":	0,
+					"index":	50,
 					"updated":	false
 				}],
-			"configComplete":	"false",
-			"name":	"name for node",
-			"cid":	"0x7778",
-			"pid":	"0x243",
-			"vid":	7,
-			"crpl":	100,
+			"configComplete":	true,
+			"name":	"Bedroom Light Switch",
+			"cid":	"0033",
+			"pid":	"0044",
+			"vid":	"0055",
+			"crpl":	"0066",
 			"features":	{
-				"relay":	0,
-				"proxy":	0,
-				"friend":	0,
-				"lowPower":	0
+				"relay":	2,
+				"proxy":	2,
+				"friend":	2,
+				"lowPower":	1
 			},
-			"secureNetworkBeacon":	"true",
-			"defaultTTL":	"8",
+			"secureNetworkBeacon":	true,
+			"defaultTTL":	123,
 			"networkTransmit":	{
-				"count":	0,
-				"interval":	0
+				"count":	2,
+				"interval":	20
 			},
 			"relayRetransmit":	{
-				"count":	0,
-				"interval":	0
+				"count":	2,
+				"interval":	20
 			},
 			"appKeys":	[{
-					"index":	0,
+					"index":	888,
 					"updated":	false
 				}],
+			"elements":	[{
+					"name":	"eleName",
+					"index":	0,
+					"location":	"0001",
+					"models":	[ {
+							"modelId":	"0004",
+							"subscribe":["aaaa","bbbb"],
+							"publish":	{
+								"address":	"C023",
+								"index":	0,
+								"ttl":	7,
+								"period":	{
+									"numberOfSteps":	3,
+									"resolution":	1000
+								},
+								"credentials":	1,
+								"retransmit":	{
+									"count":	3,
+									"interval":	1000
+								}
+							},
+							"bind":	[0,1]
+						}]
+				} ],
 			"excluded":	true,
 			"heartbeatPub":	{
-				"address":	"",
+				"address":	"3333",
 				"period":	0,
-				"ttl":	8,
+				"ttl":	6,
 				"index":	0,
 				"features":	["proxy", "relay"]
 			},
 			"heartbeatSub":	{
-				"source":	"",
-				"destination":	""
+				"source":	"1111",
+				"destination":	"2222"
 			},
-			"elements":	[],
-			"unicastaddress":	"0x1122",
-			"uuid":	"UUID Of this node",
-			"configcomplete":	false,
-			"devicekey":	"devKey for this node",
+			"unicastaddress":	"0002",
+			"uuid":	"559B8C97-32A3-45B6-9149-4865D288CBF3",
+			"configcomplete":	true,
+			"devicekey":	"0FE48D03E41D26E5C5EA327A55E8A218",
 			"securenetworkbeacon":	true,
 			"networktransmit":	{
-				"count":	0,
-				"interval":	0
+				"count":	2,
+				"interval":	20
 			},
-			"defaultttl":	8
+			"defaultttl":	123
 		}],
 	"groups":	[{
 			"name":	"Bedroom",
