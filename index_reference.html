@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mesh 配置编辑器</title>
+  <style>
+    /* 全局字体和盒模型设置 */
+    html, body, * {
+      font-family: "JetBrains Mono", "Microsoft YaHei", monospace !important;
+      box-sizing: border-box;
+    }
+    body {
+      margin: 20px;
+      background-color: #f7f7f7;
+    }
+    h1, h2, h3 {
+      text-align: center;
+      margin: 10px 0;
+    }
+    /* 固定右上角保存按钮 */
+    .save-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      background-color: #e0e0e0;
+      border: 1px solid #aaa;
+      cursor: pointer;
+    }
+    button {
+      white-space: nowrap;
+      margin: 2px;
+    }
+    /* 顶部信息容器 */
+    .top-container, .node-container {
+      border: 1px solid #ccc;
+      padding: 8px;
+      margin: 10px 0;
+      background-color: #edf7f2;
+    }
+    .top-container {
+      display: flex;
+      justify-content: space-between;
+    }
+    .left-column, .right-column {
+      flex: 1;
+      margin: 2px;
+    }
+    .right-column {
+      border-left: 1px solid #ccc;
+      padding-left: 8px;
+      background-color: #f2f7ed;
+    }
+    /* 表单行 */
+    .field-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .field-row label {
+      font-weight: bold;
+      margin-right: 5px;
+      min-width: 120px;
+    }
+    .field-row input {
+      flex: 1;
+      padding: 3px;
+    }
+    /* 表格样式 */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 5px;
+      table-layout: auto;
+    }
+    table th, table td {
+      border: 1px solid #ccc;
+      padding: 4px;
+      text-align: left;
+      vertical-align: top;
+      word-break: break-all;
+    }
+    table th {
+      /*background-color: #fffde7;*/
+      background-color: transparent;
+      white-space: nowrap;
+    }
+    table input {
+      border: none;
+      padding: 2px;
+      width: 100%;
+    }
+    /* models 子表样式 */
+    .models-subtable {
+      width: 100%;
+      border: 1px solid #ccc;
+      margin-top: 4px;
+      border-collapse: collapse;
+      background-color: #f8f8f8;
+    }
+    .models-subtable th, .models-subtable td {
+      border: 1px solid #ccc;
+      padding: 3px;
+      vertical-align: top;
+    }
+    .models-subtable th {
+      background-color: #fafafa;
+    }
+    /* 节点索引行醒目显示 */
+    .node-index {
+      background-color: #ffffcc;
+      padding: 4px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    /* Elements 表头与整体一致 */
+    .elem-table thead th {
+      background-color: inherit;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mesh 配置编辑器</h1>
+  <button class="save-btn" type="submit" form="configForm">保存配置</button>
+  <form id="configForm" method="POST" action="/cgi-bin/rdcfg.cgi" onsubmit="return prepareSubmit();">
+    <div id="formContainer">
+      <!-- 动态生成表单 -->
+    </div>
+    <input type="hidden" name="new_json" id="new_json">
+  </form>
+
+  <script>
+    /*******************************************************
+     * 全局 JSON 数据
+     *******************************************************/
+    var globalJson = {};
+
+    /*******************************************************
+     * 辅助函数：创建 label + 输入框 行
+     *******************************************************/
+    function createFieldRow(labelText, fieldName, fieldValue, labelWidth) {
+      var row = document.createElement("div");
+      row.className = "field-row";
+      var lbl = document.createElement("label");
+      lbl.textContent = labelText + ":";
+      if (labelWidth) lbl.style.minWidth = labelWidth;
+      row.appendChild(lbl);
+      var input = document.createElement("input");
+      input.type = "text";
+      input.name = fieldName;
+      input.value = (fieldValue !== undefined) ? fieldValue : "";
+      row.appendChild(input);
+      return row;
+    }
+
+    /*******************************************************
+     * 渲染顶部全局字段和 provisioner 信息（保持原有逻辑）
+     *******************************************************/
+    function renderCompactTop() {
+      var container = document.getElementById("formContainer");
+      container.innerHTML = "";
+      var topContainer = document.createElement("div");
+      topContainer.className = "top-container";
+
+      var leftCol = document.createElement("div");
+      leftCol.className = "left-column";
+      leftCol.appendChild(createFieldRow("$schema", "$schema", globalJson["$schema"]));
+      leftCol.appendChild(createFieldRow("id", "id", globalJson["id"]));
+      leftCol.appendChild(createFieldRow("version", "version", globalJson["version"]));
+      leftCol.appendChild(createFieldRow("meshUUID", "meshUUID", globalJson["meshUUID"]));
+      leftCol.appendChild(createFieldRow("meshName", "meshName", globalJson["meshName"]));
+      leftCol.appendChild(createFieldRow("timestamp", "timestamp", globalJson["timestamp"]));
+      leftCol.appendChild(createFieldRow("partial", "partial", globalJson["partial"]));
+
+      var rightCol = document.createElement("div");
+      rightCol.className = "right-column";
+      var provLabel = document.createElement("div");
+      provLabel.innerHTML = "<strong>provisioner:</strong>";
+      provLabel.style.marginBottom = "4px";
+      rightCol.appendChild(provLabel);
+
+      if (globalJson.provisioners && globalJson.provisioners.length > 0) {
+        var p = globalJson.provisioners[0];
+        rightCol.appendChild(createFieldRow("provisionName", "provisioners[0].provisionerName", p["provisionerName"]));
+        rightCol.appendChild(createFieldRow("UUID", "provisioners[0].UUID", p["UUID"]));
+        rightCol.appendChild(createFieldRow("allocatedGroupRange", "provisioners[0].allocatedGroupRange", JSON.stringify(p["allocatedGroupRange"])));
+        rightCol.appendChild(createFieldRow("allocatedUnicastRange", "provisioners[0].allocatedUnicastRange", JSON.stringify(p["allocatedUnicastRange"])));
+        rightCol.appendChild(createFieldRow("allocatedSceneRange", "provisioners[0].allocatedSceneRange", JSON.stringify(p["allocatedSceneRange"])));
+      } else {
+        rightCol.appendChild(createFieldRow("provisionName", "provisioners[0].provisionerName", ""));
+        rightCol.appendChild(createFieldRow("UUID", "provisioners[0].UUID", ""));
+        rightCol.appendChild(createFieldRow("allocatedGroupRange", "provisioners[0].allocatedGroupRange", ""));
+        rightCol.appendChild(createFieldRow("allocatedUnicastRange", "provisioners[0].allocatedUnicastRange", ""));
+        rightCol.appendChild(createFieldRow("allocatedSceneRange", "provisioners[0].allocatedSceneRange", ""));
+      }
+
+      topContainer.appendChild(leftCol);
+      topContainer.appendChild(rightCol);
+      container.appendChild(topContainer);
+    }
+
+
+	/*******************************************************
+     * Top-level netKeys 数组（调整 key/oldKey 宽度，缩短 index/phase/minSecurity）
+     *******************************************************/
+    function renderNetKeysBlock() {
+      var container = document.getElementById("formContainer");
+      var title = document.createElement("h2");
+      title.textContent = "Top-level netKeys Array:";
+      container.appendChild(title);
+
+      var table = document.createElement("table");
+      var thead = document.createElement("thead");
+      var headerRow = document.createElement("tr");
+      var headers = ["序号", "name", "index", "phase", "key", "minSecurity", "oldKey", "timestamp", "操作"];
+      headers.forEach(function(text) {
+        var th = document.createElement("th");
+        th.textContent = text;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      if (!globalJson.netKeys) globalJson.netKeys = [];
+      globalJson.netKeys.forEach(function(nk, i) {
+        var tr = document.createElement("tr");
+        // 序号
+        var tdSeq = document.createElement("td");
+        tdSeq.textContent = "[" + i + "]:";
+        tr.appendChild(tdSeq);
+        // 各字段，设置特定宽度
+        var netKeysWidthMapping = {
+          "name": "18ch",
+          "index": "4ch",
+          "phase": "4ch",
+          "minSecurity": "8ch",
+          "key": "40ch",
+          "oldKey": "40ch",
+          "timestamp":"36ch"
+        };
+        ["name", "index", "phase", "key", "minSecurity", "oldKey", "timestamp"].forEach(function(field) {
+          var td = document.createElement("td");
+          var input = document.createElement("input");
+          input.type = "text";
+          input.name = "netKeys[" + i + "]." + field;
+          input.value = nk[field] !== undefined ? nk[field] : "";
+          if(netKeysWidthMapping[field]){
+            input.style.width = netKeysWidthMapping[field];
+          }
+          td.appendChild(input);
+          tr.appendChild(td);
+        });
+        // 删除按钮
+        var tdOp = document.createElement("td");
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.textContent = "删除";
+        delBtn.onclick = function() { deleteTopLevelNetKey(i); };
+        tdOp.appendChild(delBtn);
+        tr.appendChild(tdOp);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.textContent = "添加 netKey";
+      addBtn.onclick = addTopLevelNetKey;
+      container.appendChild(addBtn);
+    }
+
+    function addTopLevelNetKey() {
+      if (!globalJson.netKeys) globalJson.netKeys = [];
+      globalJson.netKeys.push({
+        name: "",
+        index: 0,
+        phase: 0,
+        key: "",
+        minSecurity: "secure",
+        oldKey: "",
+        timestamp: ""
+      });
+      renderForm();
+    }
+
+    function deleteTopLevelNetKey(i) {
+      globalJson.netKeys.splice(i, 1);
+      renderForm();
+    }
+
+    /*******************************************************
+     * Top-level appKeys 数组
+     *******************************************************/
+    function renderAppKeysBlock() {
+      var container = document.getElementById("formContainer");
+      var title = document.createElement("h2");
+      title.textContent = "Top-level appKeys Array:";
+      container.appendChild(title);
+
+      var table = document.createElement("table");
+      var thead = document.createElement("thead");
+      var headerRow = document.createElement("tr");
+      var headers = ["序号", "name", "index", "boundNetKey", "key", "oldKey", "操作"];
+      headers.forEach(function(text) {
+        var th = document.createElement("th");
+        th.textContent = text;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      if (!globalJson.appKeys) globalJson.appKeys = [];
+      globalJson.appKeys.forEach(function(ak, i) {
+        var tr = document.createElement("tr");
+        var tdSeq = document.createElement("td");
+        tdSeq.textContent = "[" + i + "]:";
+        tr.appendChild(tdSeq);
+
+        var netKeysWidthMapping = {
+          "name": "32ch",
+          "index": "8ch",
+          "boundNetKey": "10ch",
+          "key": "40ch",
+          "oldKey": "40ch",
+        };
+		
+        ["name", "index", "boundNetKey", "key", "oldKey"].forEach(function(field) {
+          var td = document.createElement("td");
+          var input = document.createElement("input");
+          input.type = "text";
+          input.name = "appKeys[" + i + "]." + field;
+          input.value = ak[field] !== undefined ? ak[field] : "";
+          if(netKeysWidthMapping[field]){
+            input.style.width = netKeysWidthMapping[field];
+          }          
+		  td.appendChild(input);
+          tr.appendChild(td);
+        });
+        var tdOp = document.createElement("td");
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.textContent = "删除";
+        delBtn.onclick = function() { deleteTopLevelAppKey(i); };
+        tdOp.appendChild(delBtn);
+        tr.appendChild(tdOp);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.textContent = "添加 appKey";
+      addBtn.onclick = addTopLevelAppKey;
+      container.appendChild(addBtn);
+    }
+
+    function addTopLevelAppKey() {
+      if (!globalJson.appKeys) globalJson.appKeys = [];
+      globalJson.appKeys.push({
+        name: "",
+        index: 0,
+        boundNetKey: 0,
+        key: "",
+        oldKey: ""
+      });
+      renderForm();
+    }
+
+    function deleteTopLevelAppKey(i) {
+      globalJson.appKeys.splice(i, 1);
+      renderForm();
+    }
+
+    /*******************************************************
+     * Groups 数组
+     *******************************************************/
+    function renderGroupsBlock() {
+      var container = document.getElementById("formContainer");
+      var title = document.createElement("h2");
+      title.textContent = "Groups Array:";
+      container.appendChild(title);
+
+      var table = document.createElement("table");
+      var thead = document.createElement("thead");
+      var headerRow = document.createElement("tr");
+      var headers = ["序号", "name", "address", "parentAddress", "操作"];
+      headers.forEach(function(text) {
+        var th = document.createElement("th");
+        th.textContent = text;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      if (!globalJson.groups) globalJson.groups = [];
+      globalJson.groups.forEach(function(gp, i) {
+        var tr = document.createElement("tr");
+        var tdSeq = document.createElement("td");
+        tdSeq.textContent = "[" + i + "]:";
+        tr.appendChild(tdSeq);
+
+        var netKeysWidthMapping = {
+          "name": "40ch",
+          "address": "64ch",
+          "parentAddress": "40ch",
+        };
+		
+        ["name", "address", "parentAddress"].forEach(function(field) {
+          var td = document.createElement("td");
+          var input = document.createElement("input");
+          input.type = "text";
+          input.name = "groups[" + i + "]." + field;
+          input.value = gp[field] !== undefined ? gp[field] : "";
+          if(netKeysWidthMapping[field]){
+            input.style.width = netKeysWidthMapping[field];
+          }  		  
+          td.appendChild(input);
+          tr.appendChild(td);
+        });
+        var tdOp = document.createElement("td");
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.textContent = "删除";
+        delBtn.onclick = function() { deleteGroup(i); };
+        tdOp.appendChild(delBtn);
+        tr.appendChild(tdOp);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.textContent = "添加 Group";
+      addBtn.onclick = addGroup;
+      container.appendChild(addBtn);
+    }
+
+    function addGroup() {
+      if (!globalJson.groups) globalJson.groups = [];
+      globalJson.groups.push({
+        name: "",
+        address: "",
+        parentAddress: ""
+      });
+      renderForm();
+    }
+
+    function deleteGroup(i) {
+      globalJson.groups.splice(i, 1);
+      renderForm();
+    }
+
+    /*******************************************************
+     * Scenes 数组
+     *******************************************************/
+    function renderScenesBlock() {
+      var container = document.getElementById("formContainer");
+      var title = document.createElement("h2");
+      title.textContent = "Scenes Array:";
+      container.appendChild(title);
+
+      var table = document.createElement("table");
+      var thead = document.createElement("thead");
+      var headerRow = document.createElement("tr");
+      var headers = ["序号", "name", "addresses", "number", "操作"];
+      headers.forEach(function(text) {
+        var th = document.createElement("th");
+        th.textContent = text;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      if (!globalJson.scenes) globalJson.scenes = [];
+      globalJson.scenes.forEach(function(sn, i) {
+        var tr = document.createElement("tr");
+        var tdSeq = document.createElement("td");
+        tdSeq.textContent = "[" + i + "]:";
+        tr.appendChild(tdSeq);
+
+        var netKeysWidthMapping = {
+          "name": "40ch",
+          "addresses": "64ch",
+          "number": "40ch",
+        };
+		  
+        ["name", "addresses", "number"].forEach(function(field) {
+          var td = document.createElement("td");
+          var input = document.createElement("input");
+          input.type = "text";
+          input.name = "scenes[" + i + "]." + field;
+          if(field === "addresses") {
+            input.value = sn[field] ? JSON.stringify(sn[field]) : "";
+          } else {
+            input.value = sn[field] !== undefined ? sn[field] : "";
+          }
+          if(netKeysWidthMapping[field]){
+            input.style.width = netKeysWidthMapping[field];
+          }  	
+		  td.appendChild(input);
+          tr.appendChild(td);
+        });
+        var tdOp = document.createElement("td");
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.textContent = "删除";
+        delBtn.onclick = function() { deleteScene(i); };
+        tdOp.appendChild(delBtn);
+        tr.appendChild(tdOp);
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
+      var addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.textContent = "添加 Scene";
+      addBtn.onclick = addScene;
+      container.appendChild(addBtn);
+    }
+
+    function addScene() {
+      if (!globalJson.scenes) globalJson.scenes = [];
+      globalJson.scenes.push({
+        name: "",
+        addresses: [""],
+        number: ""
+      });
+      renderForm();
+    }
+
+    function deleteScene(i) {
+      globalJson.scenes.splice(i, 1);
+      renderForm();
+    }
+
+
+    /*******************************************************
+     * 渲染 Nodes 数组（更新 nodes 显示部分）
+     * 每个节点显示 8 行属性表格，并在顶部显示索引号及添加/删除按钮
+     *******************************************************/
+    function renderNodesBlock() {
+      var container = document.getElementById("formContainer");
+      var title = document.createElement("h2");
+      title.textContent = "Nodes Array:";
+      container.appendChild(title);
+
+      if (!globalJson.nodes) globalJson.nodes = [];
+
+      globalJson.nodes.forEach(function(node, i) {
+        var nodeDiv = document.createElement("div");
+        nodeDiv.className = "node-container";
+
+        // 显示节点索引（醒目颜色）
+        var idxLabel = document.createElement("div");
+        idxLabel.className = "node-index";
+        idxLabel.textContent = "[" + i + "]";
+        nodeDiv.appendChild(idxLabel);
+
+        // 节点属性表格，采用编辑型输入框显示
+        var table = document.createElement("table");
+        table.style.borderCollapse = "collapse";
+
+        // 辅助函数：生成一行(6列)
+        // 列宽：16ch, 60ch, 11ch, 6ch, 16ch, 12ch
+        function createRow(c1, c2, c3, c4, c5, c6) {
+          var tr = document.createElement("tr");
+
+          var td1 = document.createElement("td");
+          td1.style.width = "16ch";
+          td1.textContent = c1 || "";
+          tr.appendChild(td1);
+
+          var td2 = document.createElement("td");
+          td2.style.width = "60ch";
+          var input2 = document.createElement("input");
+          input2.type = "text";
+          input2.value = c2 || "";
+          input2.name = "nodes[" + i + "]." + c1.toLowerCase();
+          td2.appendChild(input2);
+          tr.appendChild(td2);
+
+          var td3 = document.createElement("td");
+          td3.style.width = "11ch";
+          td3.textContent = c3 || "";
+          tr.appendChild(td3);
+
+          var td4 = document.createElement("td");
+          td4.style.width = "6ch";
+          var input4 = document.createElement("input");
+          input4.type = "text";
+          input4.value = c4 || "";
+          input4.name = "nodes[" + i + "]." + c3.toLowerCase();
+          td4.appendChild(input4);
+          tr.appendChild(td4);
+
+          var td5 = document.createElement("td");
+          td5.style.width = "16ch";
+          td5.textContent = c5 || "";
+          tr.appendChild(td5);
+
+          var td6 = document.createElement("td");
+          td6.style.width = "12ch";
+          var input6 = document.createElement("input");
+          input6.type = "text";
+          input6.value = c6 || "";
+          input6.name = "nodes[" + i + "]." + c5.toLowerCase();
+          td6.appendChild(input6);
+          tr.appendChild(td6);
+
+          return tr;
+        }
+
+        // 行1：name, cid, UnicastAddress
+        table.appendChild(createRow("name", node.name || "", "cid", node.cid || "", "unicastAddress", node.unicastAddress || ""));
+        // 行2：UUID, pid, security
+        table.appendChild(createRow("UUID", node.UUID || "", "pid", node.pid || "", "security", node.security || ""));
+        // 行3：features, vid, configComplete
+        table.appendChild(createRow("features", node.features ? JSON.stringify(node.features) : "", "vid", node.vid || "", "configComplete", node.configComplete || ""));
+        // 行4：deviceKey, crpl, secureNetworkbeacon
+        table.appendChild(createRow("deviceKey", node.deviceKey || "", "crpl", node.crpl || "", "secureNetworkbeacon", node.secureNetworkBeacon || ""));
+        // 行5：networkTransmit, defaultTTL, excluded
+        //table.appendChild(createRow("networkTransmit", node.networkTransmit ? JSON.stringify(node.networkTransmit) : "", "defaultTTL", node.defaultTTL || "", "excluded", node.excluded || ""));
+		table.appendChild(createRow(
+    	"networkTransmit", node.networkTransmit ? JSON.stringify(node.networkTransmit) : "",
+    	"defaultTTL", node.defaultTTL || "",
+    	"excluded", node.excluded !== undefined ? (node.excluded ? "true" : "false") : ""
+		));
+
+        // 行6：relayRetransmit 与 heartbeatSub     
+        var tr6 = document.createElement("tr");        
+		var td61 = document.createElement("td");        
+		td61.style.width = "16ch";        
+		td61.textContent = "relayRetransmit";
+		tr6.appendChild(td61);        
+
+		var td62 = document.createElement("td");
+		td62.style.width = "60ch";
+		var inputRelay = document.createElement("input");
+		inputRelay.type = "text";
+		inputRelay.name = "nodes[" + i + "].relayRetransmit";
+		inputRelay.value = node.relayRetransmit ? JSON.stringify(node.relayRetransmit) : "";
+		td62.appendChild(inputRelay);
+		tr6.appendChild(td62);
+
+		var td63 = document.createElement("td");
+		td63.style.width = "11ch";
+		td63.textContent = "heartbeatSub";
+		tr6.appendChild(td63);
+		
+		var td64 = document.createElement("td");
+		td64.colSpan = 3;
+		td64.style.width = "34ch";
+		var inputHbSub = document.createElement("input");
+		inputHbSub.type = "text";
+		inputHbSub.name = "nodes[" + i + "].heartbeatSub";
+		inputHbSub.value = node.heartbeatSub ? JSON.stringify(node.heartbeatSub) : "";
+		td64.appendChild(inputHbSub);
+		tr6.appendChild(td64);
+		
+		table.appendChild(tr6);        
+		// 行7：heartbeatPub
+		//table.appendChild(createRow("heartbeatPub", node.heartbeatPub ? JSON.stringify(node.heartbeatPub) : "", "", "", "", ""));
+		var tr7 = document.createElement("tr");
+
+		// 第一列：heartbeatPub 标签
+		var td71 = document.createElement("td");
+		td71.textContent = "heartbeatPub";
+		tr7.appendChild(td71);
+
+		// 第二列：heartbeatPub 的输入框，占 3 列
+		var td72 = document.createElement("td");
+		td72.colSpan = 3;  // 让输入框横跨 3 列，避免显示空列
+
+		var inputHbPub = document.createElement("input");
+		inputHbPub.type = "text";
+		inputHbPub.style.width = "100%";
+		inputHbPub.name = "nodes[" + i + "].heartbeatPub";
+		inputHbPub.value = node.heartbeatPub ? JSON.stringify(node.heartbeatPub) : "";
+		td72.appendChild(inputHbPub);
+		tr7.appendChild(td72);
+
+		// 直接跳过第 4 列（index=3）和第 6 列（index=5），不创建它们
+
+		table.appendChild(tr7);
+
+		// 行8：跨6列显示 node appKeys  
+		var tr8 = document.createElement("tr");
+
+		// 第一列：仅显示 "node appKeys:"
+		var tdLabel = document.createElement("td");
+		tdLabel.textContent = "node appKeys";
+		tr8.appendChild(tdLabel);
+
+		// 第二列（跨 5 列）：输入框，需要对齐到上面的输入框位置
+		var tdInput = document.createElement("td");
+		tdInput.colSpan = 5;  // 让输入框跨 5 列，确保对齐
+
+		var inputAppKeys = document.createElement("input");
+		inputAppKeys.type = "text";
+		inputAppKeys.style.width = "100%";  // 让输入框占满整个单元格
+		inputAppKeys.name = "nodes[" + i + "].appKeys";
+		inputAppKeys.value = node.appKeys ? JSON.stringify(node.appKeys) : "[]";
+
+		tdInput.appendChild(inputAppKeys);
+		tr8.appendChild(tdInput);
+		table.appendChild(tr8);
+
+
+		// 行8：跨6列显示 node netKeys  
+		var tr9 = document.createElement("tr");
+		// 第一列：仅显示 "node netKeys:"
+		var tdLabel2 = document.createElement("td");
+		tdLabel2.textContent = "node netKeys";
+		tr9.appendChild(tdLabel2);
+
+		// 第二列（跨 5 列）：输入框，需要对齐到上面的输入框位置
+		var tdInput2 = document.createElement("td");
+		tdInput2.colSpan = 5;  // 让输入框跨 5 列，确保对齐
+
+		var inputNetKeys = document.createElement("input");
+		inputNetKeys.type = "text";
+		inputNetKeys.style.width = "100%";  // 让输入框占满整个单元格
+		inputNetKeys.name = "nodes[" + i + "].netKeys";
+		inputNetKeys.value = node.netKeys ? JSON.stringify(node.netKeys) : "[]";
+
+		tdInput2.appendChild(inputNetKeys);
+		tr9.appendChild(tdInput2);
+		table.appendChild(tr9);
+
+		
+		nodeDiv.appendChild(table);
+
+		
+		// Elements 部分（保持原有逻辑不变）
+		var elemTitle = document.createElement("h3");
+		elemTitle.textContent = "Elements:";
+		nodeDiv.appendChild(elemTitle);
+		var elemTable = document.createElement("table");
+		var theadElem = document.createElement("thead");
+		var headerRowElem = document.createElement("tr");
+		["序号", "index", "location", "name", "models", "操作"].forEach(function(txt){
+			var th = document.createElement("th");
+			th.textContent = txt;
+			if(txt === "序号") { th.style.width = "4ch"; }
+			if(txt === "index") { th.style.width = "6ch"; }
+			if(txt === "location") { th.style.width = "10ch"; }
+			if(txt === "name") { th.style.width = "16ch"; }
+			headerRowElem.appendChild(th);        });
+			theadElem.appendChild(headerRowElem);
+			elemTable.appendChild(theadElem);
+			var tbodyElem = document.createElement("tbody");
+			if (!node.elements) node.elements = [];
+			node.elements.forEach(function(el, j){
+				var trElem = document.createElement("tr");
+				var tdSeq = document.createElement("td");
+				tdSeq.textContent = "[" + j + "]:";
+				trElem.appendChild(tdSeq);
+				var tdIndex = document.createElement("td");
+				var inIndex = document.createElement("input");
+				inIndex.type = "text";
+				inIndex.name = "nodes[" + i + "].elements[" + j + "].index";
+				inIndex.value = el.index || "";
+				inIndex.style.width = "6ch";
+				tdIndex.appendChild(inIndex);
+				trElem.appendChild(tdIndex);
+				var tdLoc = document.createElement("td");
+				var inLoc = document.createElement("input");
+				inLoc.type = "text";
+				inLoc.name = "nodes[" + i + "].elements[" + j + "].location";
+				inLoc.value = el.location || "";
+				inLoc.style.width = "10ch";
+				tdLoc.appendChild(inLoc);
+				trElem.appendChild(tdLoc);
+				var tdName = document.createElement("td");
+				var inName = document.createElement("input");
+				inName.type = "text";
+				inName.name = "nodes[" + i + "].elements[" + j + "].name";
+				inName.value = el.name || "";
+				inName.style.width = "16ch";
+				tdName.appendChild(inName);
+				trElem.appendChild(tdName);
+				var tdModels = document.createElement("td");
+				tdModels.appendChild(createModelsSubtable(el, i, j));
+				trElem.appendChild(tdModels);
+				var tdOp = document.createElement("td");
+				var delBtn = document.createElement("button");
+				delBtn.type = "button";
+				delBtn.textContent = "删除element";
+				delBtn.onclick = function() { deleteElement(i, j); };
+				tdOp.appendChild(delBtn);
+				trElem.appendChild(tdOp);
+				tbodyElem.appendChild(trElem);
+				});
+				elemTable.appendChild(tbodyElem);
+				nodeDiv.appendChild(elemTable);
+
+	var addElemBtn = document.createElement("button");
+	addElemBtn.type = "button";
+	addElemBtn.textContent = "添加 element";
+	addElemBtn.onclick = function() { addElement(i); };
+	nodeDiv.appendChild(addElemBtn);
+
+	var delNodeBtn = document.createElement("button");
+	delNodeBtn.type = "button";
+	delNodeBtn.textContent = "删除 Node";
+	delNodeBtn.onclick = function() { deleteNode(i); };
+	nodeDiv.appendChild(delNodeBtn);
+	container.appendChild(nodeDiv);
+	});
+	}
+
+    /*******************************************************
+     * models 子表生成函数（保持原有逻辑）
+     *******************************************************/
+    function createModelsSubtable(element, nodeIndex, elementIndex) {
+      var container = document.createElement("div");
+      if (!element.models) element.models = [];
+      var subTable = document.createElement("table");
+      subTable.className = "models-subtable";
+      var theadModels = document.createElement("thead");
+      var headerRowModels = document.createElement("tr");
+      ["modelId", "subscribe", "publish", "bind", "操作"].forEach(function(txt) {
+        var th = document.createElement("th");
+        th.textContent = txt;
+        if(txt === "modelId") { th.style.width = "10ch"; }
+        if(txt === "subscribe") { th.style.width = "32ch"; }
+        if(txt === "publish") { th.style.width = "48ch"; }
+        if(txt === "bind") { th.style.width = "28ch"; }
+        headerRowModels.appendChild(th);
+      });
+      theadModels.appendChild(headerRowModels);
+      subTable.appendChild(theadModels);
+      var tbodyModels = document.createElement("tbody");
+      element.models.forEach(function(m, modelIdx) {
+        var tr = document.createElement("tr");
+        var tdModelId = document.createElement("td");
+        var inModelId = document.createElement("input");
+        inModelId.type = "text";
+        inModelId.name = "nodes[" + nodeIndex + "].elements[" + elementIndex + "].models[" + modelIdx + "].modelId";
+        inModelId.value = m.modelId || "";
+        inModelId.style.width = "10ch";
+        tdModelId.appendChild(inModelId);
+        tr.appendChild(tdModelId);
+        var tdSubscribe = document.createElement("td");
+        var inSubscribe = document.createElement("input");
+        inSubscribe.type = "text";
+        inSubscribe.name = "nodes[" + nodeIndex + "].elements[" + elementIndex + "].models[" + modelIdx + "].subscribe";
+        inSubscribe.value = m.subscribe || "";
+        inSubscribe.style.width = "36ch";
+        tdSubscribe.appendChild(inSubscribe);
+        tr.appendChild(tdSubscribe);
+        var tdPublish = document.createElement("td");
+        var inPublish = document.createElement("input");
+        inPublish.type = "text";
+        inPublish.name = "nodes[" + nodeIndex + "].elements[" + elementIndex + "].models[" + modelIdx + "].publish";
+        inPublish.value = m.publish !== undefined ? (typeof m.publish === "object" ? JSON.stringify(m.publish) : m.publish) : "";
+        inPublish.style.width = "84ch";
+        tdPublish.appendChild(inPublish);
+        tr.appendChild(tdPublish);
+        var tdBind = document.createElement("td");
+        var inBind = document.createElement("input");
+        inBind.type = "text";
+        inBind.name = "nodes[" + nodeIndex + "].elements[" + elementIndex + "].models[" + modelIdx + "].bind";
+        inBind.value = m.bind !== undefined ? (Array.isArray(m.bind) ? JSON.stringify(m.bind) : m.bind) : "";
+        inBind.style.width = "28ch";
+        tdBind.appendChild(inBind);
+        tr.appendChild(tdBind);
+        var tdOp = document.createElement("td");
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.textContent = "删除model";
+        delBtn.onclick = function() { deleteModel(element, modelIdx); };
+        tdOp.appendChild(delBtn);
+        tr.appendChild(tdOp);
+        tbodyModels.appendChild(tr);
+      });
+      subTable.appendChild(tbodyModels);
+      var addModelBtn = document.createElement("button");
+      addModelBtn.type = "button";
+      addModelBtn.textContent = "添加 model";
+      addModelBtn.onclick = function() { addModel(element); };
+      container.appendChild(subTable);
+      container.appendChild(addModelBtn);
+      return container;
+    }
+
+///*
+    function addModel(element) {
+      if (!element.models) element.models = [];
+
+  // Get the subscribe input value and split it into an array
+  //let subscribeValue = document.querySelector(`#subscribe-input`).value.trim();
+  
+  // Split by spaces or other delimiters if necessary
+  //let subscribeArray = subscribeValue ? subscribeValue.split(/\s+/) : [];
+	  
+      element.models.push({
+        modelId: "SIGModID",
+        subscribe: "[subAddr]",
+        publish: {"address":"","index":0,"ttl":8,"period":{"numberOfSteps":8,"resolution":10000},"retransmit":{"count":1,"interval":100},"credentials":1},
+        bind: "[idxAppKey]"
+      });
+      renderForm();
+    }
+//*/
+
+
+
+
+    function deleteModel(element, modelIdx) {
+      if (element.models && element.models.length > modelIdx) {
+        element.models.splice(modelIdx, 1);
+        renderForm();
+      }
+    }
+
+    /*******************************************************
+     * Nodes 操作：添加、删除 Node 与 element
+     *******************************************************/
+    function addNode() {
+      if (!globalJson.nodes) globalJson.nodes = [];
+      globalJson.nodes.push({
+        UUID: "UUID Of this node",
+        unicastAddress: "UniCastAddr",
+        deviceKey: "devKey for this node",
+        security: "secure",
+        netKeys: [{"index":0,"updated":false}],
+        configComplete: "false",
+        name: "name for node",
+        cid: "0",
+        pid: "0",
+        vid: "0",
+        crpl: "0",
+        features: {"relay":0,"proxy":0,"friend":0,"lowPower":0},
+        secureNetworkBeacon: "true",
+        defaultTTL: "8",
+        networkTransmit: {"count":0,"interval":0},
+        relayRetransmit: {"count":0,"interval":0},
+        appKeys: [{"index":0,"updated":false}],
+        excluded: "false",
+        heartbeatPub: {"address":"","period":0,"ttl":8,"index":0,"features":["proxy","relay"]},
+        heartbeatSub: {"source":"","destination":""},
+        elements: []
+      });
+      renderForm();
+    }
+
+    function deleteNode(i) {
+      if (globalJson.nodes && globalJson.nodes.length > i) {
+        globalJson.nodes.splice(i, 1);
+        renderForm();
+      }
+    }
+
+    function addElement(nodeIndex) {
+      if (!globalJson.nodes[nodeIndex].elements) {
+        globalJson.nodes[nodeIndex].elements = [];
+      }
+      globalJson.nodes[nodeIndex].elements.push({
+        index: "0~255",
+        location: "0",
+        name: "elementName",
+        models: []
+      });
+      renderForm();
+    }
+
+    function deleteElement(nodeIndex, elementIndex) {
+      if (globalJson.nodes[nodeIndex].elements && globalJson.nodes[nodeIndex].elements.length > elementIndex) {
+        globalJson.nodes[nodeIndex].elements.splice(elementIndex, 1);
+        renderForm();
+      }
+    }
+
+    /*******************************************************
+     * 更新 globalJson 数据（将表单中的值更新到 JSON 对象中）
+     *******************************************************/
+    function updateGlobalJsonFromForm() {
+      var inputs = document.querySelectorAll("#formContainer input[type='text']");
+      inputs.forEach(function(input) {
+        var path = input.name;
+        var value = input.value;
+        setValueByPath(globalJson, path, value);
+      });
+    }
+
+    function setValueByPath(obj, path, value) {
+      var parts = path.split(".");
+      var current = obj;
+      for (var i = 0; i < parts.length - 1; i++) {
+        //var arrayMatch = parts[i].match(/^([^\\[]+)\\[(\\d+)\\]$/);
+        var arrayMatch = parts[i].match(/^([^\[]+)\[(\d+)\]$/);
+        if (arrayMatch) {
+          var key = arrayMatch[1];
+          var idx = parseInt(arrayMatch[2], 10);
+          if (!current[key]) current[key] = [];
+          if (!current[key][idx]) current[key][idx] = {};
+          current = current[key][idx];
+        } else {
+          if (!current[parts[i]]) current[parts[i]] = {};
+          current = current[parts[i]];
+        }
+      }
+      var lastPart = parts[parts.length - 1];
+      //var lastArrayMatch = lastPart.match(/^([^\\[]+)\\[(\\d+)\\]$/);
+      var lastArrayMatch = lastPart.match(/^([^\[]+)\[(\d+)\]$/);
+	  
+      if (lastArrayMatch) {
+        var key = lastArrayMatch[1];
+        var idx = parseInt(lastArrayMatch[2], 10);
+        if (!current[key]) current[key] = [];
+        current[key][idx] = parseMaybeJSON(value);
+      } else {
+        current[lastPart] = parseMaybeJSON(value);
+      }
+    }
+
+    function parseMaybeJSON(value) {
+      if (!value) return value;
+      try {
+        return JSON.parse(value);
+      } catch(e) {
+        return value;
+      }
+    }
+
+    function prepareSubmit() {
+      updateGlobalJsonFromForm();
+      var jsonStr = JSON.stringify(globalJson, null, 2);
+      document.getElementById("new_json").value = jsonStr;
+      console.log("new_json:", jsonStr);
+      return true;
+    }
+
+    /*******************************************************
+     * 统一渲染所有表单
+     *******************************************************/
+    function renderForm() {
+      renderCompactTop();
+      renderNetKeysBlock();
+      renderAppKeysBlock();
+      renderGroupsBlock();
+      renderScenesBlock();
+      renderNodesBlock();
+    }
+
+    /*******************************************************
+     * 加载配置文件 prj_cfg.json
+     *******************************************************/
+    function loadConfig() {
+      var xhr = new XMLHttpRequest();
+      xhr.overrideMimeType("application/json");
+      xhr.open("GET", "prj_cfg.json", true);
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            try {
+              var cleanText = xhr.responseText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+              globalJson = JSON.parse(cleanText);
+              console.log("Loaded JSON:", globalJson);
+              renderForm();
+            } catch (e) {
+              console.error("JSON 解析错误:", e);
+              document.getElementById("formContainer").innerHTML =
+                "<div id='errorMsg'>JSON 解析错误: " + e + "</div>";
+            }
+          } else {
+            console.error("加载 prj_cfg.json 失败，状态码:", xhr.status);
+            document.getElementById("formContainer").innerHTML =
+              "<div id='errorMsg'>加载配置文件失败，状态码：" + xhr.status + "</div>";
+          }
+        }
+      };
+      xhr.send(null);
+    }
+    window.onload = loadConfig;
+  </script>
+  <button type="button" onclick="addNode();">添加 Node</button>
+</body>
+</html>
+
+
