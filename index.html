@@ -611,7 +611,7 @@
         }
 
         // 行1：name, cid, UnicastAddress
-        table.appendChild(createRow("name", node.name || "", "cid", node.cid || "", "UnicastAddress", node.unicastAddress || ""));
+        table.appendChild(createRow("name", node.name || "", "cid", node.cid || "", "unicastAddress", node.unicastAddress || ""));
         // 行2：UUID, pid, security
         table.appendChild(createRow("UUID", node.UUID || "", "pid", node.pid || "", "security", node.security || ""));
         // 行3：features, vid, configComplete
