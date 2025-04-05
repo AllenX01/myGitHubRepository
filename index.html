@@ -544,270 +544,270 @@
 
 
 	
-function renderNodesBlock() {
-  var container = document.getElementById("formContainer");
-  var title = document.createElement("h2");
-  title.textContent = "Nodes Array:";
-  container.appendChild(title);
+  // 确保所有字段的路径名称正确
+  function renderNodesBlock() {
+    var container = document.getElementById("formContainer");
+    var title = document.createElement("h2");
+    title.textContent = "Nodes Array:";
+    container.appendChild(title);
 
-  if (!globalJson.nodes) globalJson.nodes = [];
+    if (!globalJson.nodes) globalJson.nodes = [];
 
-  globalJson.nodes.forEach(function(node, i) {
-    var nodeDiv = document.createElement("div");
-    nodeDiv.className = "node-container";
+    globalJson.nodes.forEach(function(node, i) {
+      var nodeDiv = document.createElement("div");
+      nodeDiv.className = "node-container";
 
-    // 显示节点索引（醒目颜色）
-    var idxLabel = document.createElement("div");
-    idxLabel.className = "node-index";
-    idxLabel.textContent = "[" + i + "]";
-    nodeDiv.appendChild(idxLabel);
+      // 显示节点索引（醒目颜色）
+      var idxLabel = document.createElement("div");
+      idxLabel.className = "node-index";
+      idxLabel.textContent = "[" + i + "]";
+      nodeDiv.appendChild(idxLabel);
 
-    // 节点属性表格，采用编辑型输入框显示
-    var table = document.createElement("table");
-    table.style.borderCollapse = "collapse";
+      // 节点属性表格，采用编辑型输入框显示
+      var table = document.createElement("table");
+      table.style.borderCollapse = "collapse";
 
-    // 辅助函数：生成一行(6列)
-    function createRow(c1, c2, c3, c4, c5, c6) {
-      var tr = document.createElement("tr");
+      // 辅助函数：生成一行(6列)
+      function createRow(c1, c2, c3, c4, c5, c6) {
+        var tr = document.createElement("tr");
 
-      var td1 = document.createElement("td");
-      td1.style.width = "16ch";
-      td1.textContent = c1 || "";
-      tr.appendChild(td1);
+        var td1 = document.createElement("td");
+        td1.style.width = "16ch";
+        td1.textContent = c1 || "";
+        tr.appendChild(td1);
 
-      var td2 = document.createElement("td");
-      td2.style.width = "60ch";
-      var input2 = document.createElement("input");
-      input2.type = "text";
-      input2.value = c2 || "";
-      input2.name = "nodes[" + i + "]." + c1.toLowerCase();
-      td2.appendChild(input2);
-      tr.appendChild(td2);
+        var td2 = document.createElement("td");
+        td2.style.width = "60ch";
+        var input2 = document.createElement("input");
+        input2.type = "text";
+        input2.value = c2 || "";
+        input2.name = "nodes[" + i + "]." + c1;
+        td2.appendChild(input2);
+        tr.appendChild(td2);
 
-      var td3 = document.createElement("td");
-      td3.style.width = "11ch";
-      td3.textContent = c3 || "";
-      tr.appendChild(td3);
+        var td3 = document.createElement("td");
+        td3.style.width = "11ch";
+        td3.textContent = c3 || "";
+        tr.appendChild(td3);
 
-      var td4 = document.createElement("td");
-      td4.style.width = "6ch";
-      var input4 = document.createElement("input");
-      input4.type = "text";
-      input4.value = c4 || "";
-      input4.name = "nodes[" + i + "]." + c3.toLowerCase();
-      td4.appendChild(input4);
-      tr.appendChild(td4);
+        var td4 = document.createElement("td");
+        td4.style.width = "6ch";
+        var input4 = document.createElement("input");
+        input4.type = "text";
+        input4.value = c4 || "";
+        input4.name = "nodes[" + i + "]." + c3;
+        td4.appendChild(input4);
+        tr.appendChild(td4);
 
-      var td5 = document.createElement("td");
-      td5.style.width = "16ch";
-      td5.textContent = c5 || "";
-      tr.appendChild(td5);
+        var td5 = document.createElement("td");
+        td5.style.width = "16ch";
+        td5.textContent = c5 || "";
+        tr.appendChild(td5);
 
-      var td6 = document.createElement("td");
-      td6.style.width = "12ch";
-      var input6 = document.createElement("input");
-      input6.type = "text";
-      input6.value = c6 || "";
-      input6.name = "nodes[" + i + "]." + c5.toLowerCase();
-      td6.appendChild(input6);
-      tr.appendChild(td6);
+        var td6 = document.createElement("td");
+        td6.style.width = "12ch";
+        var input6 = document.createElement("input");
+        input6.type = "text";
+        input6.value = c6 || "";
+        input6.name = "nodes[" + i + "]." + c5;
+        td6.appendChild(input6);
+        tr.appendChild(td6);
 
-      return tr;
-    }
+        return tr;
+      }
 
-    // 行1：name, cid, UnicastAddress
-    table.appendChild(createRow("name", node.name || "", "cid", node.cid || "", "unicastAddress", node.unicastAddress || ""));
-    // 行2：UUID, pid, security
-    table.appendChild(createRow("UUID", node.UUID || "", "pid", node.pid || "", "security", node.security || ""));
-    // 行3：features, vid, configComplete
-    table.appendChild(createRow("features", node.features ? JSON.stringify(node.features) : "", "vid", node.vid || "", "configComplete", node.configComplete || ""));
-    // 行4：deviceKey, crpl, secureNetworkbeacon
-    table.appendChild(createRow("deviceKey", node.deviceKey || "", "crpl", node.crpl || "", "secureNetworkbeacon", node.secureNetworkBeacon || ""));
-    // 行5：networkTransmit, defaultTTL, excluded
-    table.appendChild(createRow(
-      "networkTransmit", node.networkTransmit ? JSON.stringify(node.networkTransmit) : "",
-      "defaultTTL", node.defaultTTL || "",
-      "excluded", node.excluded !== undefined ? (node.excluded ? "true" : "false") : ""
-    ));
+      // 行1：name, cid, unicastAddress
+      table.appendChild(createRow("name", node.name || "", "cid", node.cid || "", "unicastAddress", node.unicastAddress || ""));
+      // 行2：UUID, pid, security
+      table.appendChild(createRow("UUID", node.UUID || "", "pid", node.pid || "", "security", node.security || ""));
+      // 行3：features, vid, configComplete
+      table.appendChild(createRow("features", node.features ? JSON.stringify(node.features) : "", "vid", node.vid || "", "configComplete", node.configComplete || ""));
+      // 行4：deviceKey, crpl, secureNetworkbeacon
+      table.appendChild(createRow("deviceKey", node.deviceKey || "", "crpl", node.crpl || "", "secureNetworkbeacon", node.secureNetworkBeacon || ""));
+      // 行5：networkTransmit, defaultTTL, excluded
+      table.appendChild(createRow(
+        "networkTransmit", node.networkTransmit ? JSON.stringify(node.networkTransmit) : "",
+        "defaultTTL", node.defaultTTL || "",
+        "excluded", node.excluded !== undefined ? (node.excluded ? "true" : "false") : ""
+      ));
 
-    // 行6：relayRetransmit 与 heartbeatSub     
-    var tr6 = document.createElement("tr");
-    var td61 = document.createElement("td");
-    td61.style.width = "16ch";
-    td61.textContent = "relayRetransmit";
-    tr6.appendChild(td61);
+      // 行6：relayRetransmit 与 heartbeatSub     
+      var tr6 = document.createElement("tr");
+      var td61 = document.createElement("td");
+      td61.style.width = "16ch";
+      td61.textContent = "relayRetransmit";
+      tr6.appendChild(td61);
 
-    var td62 = document.createElement("td");
-    td62.style.width = "60ch";
-    var inputRelay = document.createElement("input");
-    inputRelay.type = "text";
-    inputRelay.name = "nodes[" + i + "].relayRetransmit";
-    inputRelay.value = node.relayRetransmit ? JSON.stringify(node.relayRetransmit) : "";
-    td62.appendChild(inputRelay);
-    tr6.appendChild(td62);
+      var td62 = document.createElement("td");
+      td62.style.width = "60ch";
+      var inputRelay = document.createElement("input");
+      inputRelay.type = "text";
+      inputRelay.name = "nodes[" + i + "].relayRetransmit";
+      inputRelay.value = node.relayRetransmit ? JSON.stringify(node.relayRetransmit) : "";
+      td62.appendChild(inputRelay);
+      tr6.appendChild(td62);
 
-    var td63 = document.createElement("td");
-    td63.style.width = "11ch";
-    td63.textContent = "heartbeatSub";
-    tr6.appendChild(td63);
+      var td63 = document.createElement("td");
+      td63.style.width = "11ch";
+      td63.textContent = "heartbeatSub";
+      tr6.appendChild(td63);
 
-    var td64 = document.createElement("td");
-    td64.colSpan = 3;
-    td64.style.width = "34ch";
-    var inputHbSub = document.createElement("input");
-    inputHbSub.type = "text";
-    inputHbSub.name = "nodes[" + i + "].heartbeatSub";
-    inputHbSub.value = node.heartbeatSub ? JSON.stringify(node.heartbeatSub) : "";
-    td64.appendChild(inputHbSub);
-    tr6.appendChild(td64);
+      var td64 = document.createElement("td");
+      td64.colSpan = 3;
+      td64.style.width = "34ch";
+      var inputHbSub = document.createElement("input");
+      inputHbSub.type = "text";
+      inputHbSub.name = "nodes[" + i + "].heartbeatSub";
+      inputHbSub.value = node.heartbeatSub ? JSON.stringify(node.heartbeatSub) : "";
+      td64.appendChild(inputHbSub);
+      tr6.appendChild(td64);
 
-    table.appendChild(tr6);
+      table.appendChild(tr6);
 
-    // 行7：heartbeatPub
-    var tr7 = document.createElement("tr");
-    var td71 = document.createElement("td");
-    td71.textContent = "heartbeatPub";
-    tr7.appendChild(td71);
+      // 行7：heartbeatPub
+      var tr7 = document.createElement("tr");
+      var td71 = document.createElement("td");
+      td71.textContent = "heartbeatPub";
+      tr7.appendChild(td71);
 
-    var td72 = document.createElement("td");
-    td72.colSpan = 3;
-    var inputHbPub = document.createElement("input");
-    inputHbPub.type = "text";
-    inputHbPub.style.width = "100%";
-    inputHbPub.name = "nodes[" + i + "].heartbeatPub";
-    inputHbPub.value = node.heartbeatPub ? JSON.stringify(node.heartbeatPub) : "";
-    td72.appendChild(inputHbPub);
-    tr7.appendChild(td72);
+      var td72 = document.createElement("td");
+      td72.colSpan = 3;
+      var inputHbPub = document.createElement("input");
+      inputHbPub.type = "text";
+      inputHbPub.style.width = "100%";
+      inputHbPub.name = "nodes[" + i + "].heartbeatPub";
+      inputHbPub.value = node.heartbeatPub ? JSON.stringify(node.heartbeatPub) : "";
+      td72.appendChild(inputHbPub);
+      tr7.appendChild(td72);
 
-    table.appendChild(tr7);
+      table.appendChild(tr7);
 
-    // 行8：跨6列显示 node appKeys
-    var tr8 = document.createElement("tr");
-    var tdLabel = document.createElement("td");
-    tdLabel.textContent = "node appKeys";
-    tr8.appendChild(tdLabel);
+      // 行8：跨6列显示 node appKeys
+      var tr8 = document.createElement("tr");
+      var tdLabel = document.createElement("td");
+      tdLabel.textContent = "node appKeys";
+      tr8.appendChild(tdLabel);
 
-    var tdInput = document.createElement("td");
-    tdInput.colSpan = 5;
-    var inputAppKeys = document.createElement("input");
-    inputAppKeys.type = "text";
-    inputAppKeys.style.width = "100%";
-    inputAppKeys.name = "nodes[" + i + "].appKeys";
-    inputAppKeys.value = node.appKeys ? JSON.stringify(node.appKeys) : "[]";
-    tdInput.appendChild(inputAppKeys);
-    tr8.appendChild(tdInput);
-    table.appendChild(tr8);
+      var tdInput = document.createElement("td");
+      tdInput.colSpan = 5;
+      var inputAppKeys = document.createElement("input");
+      inputAppKeys.type = "text";
+      inputAppKeys.style.width = "100%";
+      inputAppKeys.name = "nodes[" + i + "].appKeys";
+      inputAppKeys.value = node.appKeys ? JSON.stringify(node.appKeys) : "[]";
+      tdInput.appendChild(inputAppKeys);
+      tr8.appendChild(tdInput);
+      table.appendChild(tr8);
 
-    // 行9：跨6列显示 node netKeys
-    var tr9 = document.createElement("tr");
-    var tdLabel2 = document.createElement("td");
-    tdLabel2.textContent = "node netKeys";
-    tr9.appendChild(tdLabel2);
+      // 行9：跨6列显示 node netKeys
+      var tr9 = document.createElement("tr");
+      var tdLabel2 = document.createElement("td");
+      tdLabel2.textContent = "node netKeys";
+      tr9.appendChild(tdLabel2);
 
-    var tdInput2 = document.createElement("td");
-    tdInput2.colSpan = 5;
-    var inputNetKeys = document.createElement("input");
-    inputNetKeys.type = "text";
-    inputNetKeys.style.width = "100%";
-    inputNetKeys.name = "nodes[" + i + "].netKeys";
-    inputNetKeys.value = node.netKeys ? JSON.stringify(node.netKeys) : "[]";
-    tdInput2.appendChild(inputNetKeys);
-    tr9.appendChild(tdInput2);
-    table.appendChild(tr9);
+      var tdInput2 = document.createElement("td");
+      tdInput2.colSpan = 5;
+      var inputNetKeys = document.createElement("input");
+      inputNetKeys.type = "text";
+      inputNetKeys.style.width = "100%";
+      inputNetKeys.name = "nodes[" + i + "].netKeys";
+      inputNetKeys.value = node.netKeys ? JSON.stringify(node.netKeys) : "[]";
+      tdInput2.appendChild(inputNetKeys);
+      tr9.appendChild(tdInput2);
+      table.appendChild(tr9);
 
-    nodeDiv.appendChild(table);
+      nodeDiv.appendChild(table);
 
-    // Elements 部分（保持原有逻辑不变）
-    var elemTitle = document.createElement("h3");
-    elemTitle.textContent = "Elements:";
-    nodeDiv.appendChild(elemTitle);
-    var elemTable = document.createElement("table");
-    var theadElem = document.createElement("thead");
-    var headerRowElem = document.createElement("tr");
-    ["序号", "index", "location", "name", "models", "操作"].forEach(function(txt) {
-      var th = document.createElement("th");
-      th.textContent = txt;
-      if (txt === "序号") { th.style.width = "4ch"; }
-      if (txt === "index") { th.style.width = "6ch"; }
-      if (txt === "location") { th.style.width = "10ch"; }
-      if (txt === "name") { th.style.width = "16ch"; }
-      headerRowElem.appendChild(th);
+      // Elements 部分（保持原有逻辑不变）
+      var elemTitle = document.createElement("h3");
+      elemTitle.textContent = "Elements:";
+      nodeDiv.appendChild(elemTitle);
+      var elemTable = document.createElement("table");
+      var theadElem = document.createElement("thead");
+      var headerRowElem = document.createElement("tr");
+      ["序号", "index", "location", "name", "models", "操作"].forEach(function(txt) {
+        var th = document.createElement("th");
+        th.textContent = txt;
+        if (txt === "序号") { th.style.width = "4ch"; }
+        if (txt === "index") { th.style.width = "6ch"; }
+        if (txt === "location") { th.style.width = "10ch"; }
+        if (txt === "name") { th.style.width = "16ch"; }
+        headerRowElem.appendChild(th);
+      });
+      theadElem.appendChild(headerRowElem);
+      elemTable.appendChild(theadElem);
+      var tbodyElem = document.createElement("tbody");
+      if (!node.elements) node.elements = [];
+      node.elements.forEach(function(el, j) {
+        var trElem = document.createElement("tr");
+        var tdSeq = document.createElement("td");
+        tdSeq.textContent = "[" + j + "]:";
+        trElem.appendChild(tdSeq);
+
+        var tdIndex = document.createElement("td");
+        var inIndex = document.createElement("input");
+        inIndex.type = "text";
+        inIndex.name = "nodes[" + i + "].elements[" + j + "].index";
+        inIndex.value = el.index || "";
+        inIndex.style.width = "6ch";
+        tdIndex.appendChild(inIndex);
+        trElem.appendChild(tdIndex);
+
+        var tdLoc = document.createElement("td");
+        var inLoc = document.createElement("input");
+        inLoc.type = "text";
+        inLoc.name = "nodes[" + i + "].elements[" + j + "].location";
+        inLoc.value = el.location || "";
+        inLoc.style.width = "10ch";
+        tdLoc.appendChild(inLoc);
+        trElem.appendChild(tdLoc);
+
+        var tdName = document.createElement("td");
+        var inName = document.createElement("input");
+        inName.type = "text";
+        inName.name = "nodes[" + i + "].elements[" + j + "].name";
+        inName.value = el.name || "";
+        inName.style.width = "16ch";
+        tdName.appendChild(inName);
+        trElem.appendChild(tdName);
+
+        var tdModels = document.createElement("td");
+        tdModels.appendChild(createModelsSubtable(el, i, j));
+        trElem.appendChild(tdModels);
+
+        var tdOp = document.createElement("td");
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.textContent = "删除element";
+        delBtn.onclick = function() { deleteElement(i, j); };
+        tdOp.appendChild(delBtn);
+        trElem.appendChild(tdOp);
+        tbodyElem.appendChild(trElem);
+      });
+      elemTable.appendChild(tbodyElem);
+      nodeDiv.appendChild(elemTable);
+
+      var addElemBtn = document.createElement("button");
+      addElemBtn.type = "button";
+      addElemBtn.textContent = "添加 element";
+      addElemBtn.onclick = function() { addElement(i); };
+      nodeDiv.appendChild(addElemBtn);
+
+      var delNodeBtn = document.createElement("button");
+      delNodeBtn.type = "button";
+      delNodeBtn.textContent = "删除 Node";
+      delNodeBtn.onclick = function() { deleteNode(i); };
+      nodeDiv.appendChild(delNodeBtn);
+      container.appendChild(nodeDiv);
     });
-    theadElem.appendChild(headerRowElem);
-    elemTable.appendChild(theadElem);
-    var tbodyElem = document.createElement("tbody");
-    if (!node.elements) node.elements = [];
-    node.elements.forEach(function(el, j) {
-      var trElem = document.createElement("tr");
-      var tdSeq = document.createElement("td");
-      tdSeq.textContent = "[" + j + "]:";
-      trElem.appendChild(tdSeq);
 
-      var tdIndex = document.createElement("td");
-      var inIndex = document.createElement("input");
-      inIndex.type = "text";
-      inIndex.name = "nodes[" + i + "].elements[" + j + "].index";
-      inIndex.value = el.index || "";
-      inIndex.style.width = "6ch";
-      tdIndex.appendChild(inIndex);
-      trElem.appendChild(tdIndex);
-
-      var tdLoc = document.createElement("td");
-      var inLoc = document.createElement("input");
-      inLoc.type = "text";
-      inLoc.name = "nodes[" + i + "].elements[" + j + "].location";
-      inLoc.value = el.location || "";
-      inLoc.style.width = "10ch";
-      tdLoc.appendChild(inLoc);
-      trElem.appendChild(tdLoc);
-
-      var tdName = document.createElement("td");
-      var inName = document.createElement("input");
-      inName.type = "text";
-      inName.name = "nodes[" + i + "].elements[" + j + "].name";
-      inName.value = el.name || "";
-      inName.style.width = "16ch";
-      tdName.appendChild(inName);
-      trElem.appendChild(tdName);
-
-      var tdModels = document.createElement("td");
-      tdModels.appendChild(createModelsSubtable(el, i, j));
-      trElem.appendChild(tdModels);
-
-      var tdOp = document.createElement("td");
-      var delBtn = document.createElement("button");
-      delBtn.type = "button";
-      delBtn.textContent = "删除element";
-      delBtn.onclick = function() { deleteElement(i, j); };
-      tdOp.appendChild(delBtn);
-      trElem.appendChild(tdOp);
-      tbodyElem.appendChild(trElem);
-    });
-    elemTable.appendChild(tbodyElem);
-    nodeDiv.appendChild(elemTable);
-
-    var addElemBtn = document.createElement("button");
-    addElemBtn.type = "button";
-    addElemBtn.textContent = "添加 element";
-    addElemBtn.onclick = function() { addElement(i); };
-    nodeDiv.appendChild(addElemBtn);
-
-    var delNodeBtn = document.createElement("button");
-    delNodeBtn.type = "button";
-    delNodeBtn.textContent = "删除 Node";
-    delNodeBtn.onclick = function() { deleteNode(i); };
-    nodeDiv.appendChild(delNodeBtn);
-    container.appendChild(nodeDiv);
-  });
-
-  // 始终显示添加节点的按钮
-  var addNodeBtn = document.createElement("button");
-  addNodeBtn.type = "button";
-  addNodeBtn.textContent = "添加 Node";
-  addNodeBtn.onclick = function() { addNode(); };
-  container.appendChild(addNodeBtn);
-}
-
+    // 始终显示添加节点的按钮
+    var addNodeBtn = document.createElement("button");
+    addNodeBtn.type = "button";
+    addNodeBtn.textContent = "添加 Node";
+    addNodeBtn.onclick = function() { addNode(); };
+    container.appendChild(addNodeBtn);
+  }
 
 
 
@@ -1101,31 +1101,49 @@ function deleteModel(nodeIndex, elementIndex, modelIndex) {
       }
     }
 
-    /*******************************************************
-     * 更新 globalJson 数据（将表单中的值更新到 JSON 对象中）
-     *******************************************************/
+
+  /*******************************************************
+   * 更新 globalJson 数据（将表单中的值更新到 JSON 对象中）
+   *******************************************************/
+
+
+
+
+
+
+	
 function updateGlobalJsonFromForm() {
   var inputs = document.querySelectorAll("#formContainer input[type='text']");
   inputs.forEach(function(input) {
     var path = input.name;
     var value = input.value;
 
-    // 尝试解析 JSON 字符串
-    try {
-      value = JSON.parse(value);
-    } catch (e) {
-      // 如果解析失败，则保留原始值
+    // 确保特定字段始终作为字符串保存
+    var stringFields = ["cid", "pid", "vid", "crpl", "unicastAddress","modelId"];
+    if (stringFields.some(field => path.includes(field))) {
+      value = value.toString();
+    } else {
+      // 尝试解析 JSON 字符串
+      try {
+        value = JSON.parse(value);
+      } catch (e) {
+        // 如果解析失败，则保留原始值
+      }
     }
 
     setValueByPath(globalJson, path, value);
   });
 }
 
+  
+
+
+
 function setValueByPath(obj, path, value) {
   var parts = path.split(".");
   var current = obj;
   for (var i = 0; i < parts.length - 1; i++) {
-    var arrayMatch = parts[i].match(/^([^\[]+)\[(\d+)\]$/);
+    var arrayMatch = parts[i].match(/^([^[]+)\[(\d+)\]$/);
     if (arrayMatch) {
       var key = arrayMatch[1];
       var idx = parseInt(arrayMatch[2], 10);
@@ -1137,66 +1155,112 @@ function setValueByPath(obj, path, value) {
       current = current[parts[i]];
     }
   }
-  current[parts[parts.length - 1]] = value;
+  var lastPart = parts[parts.length - 1];
+  var lastArrayMatch = lastPart.match(/^([^[]+)\[(\d+)\]$/);
+
+  // 确保特定字段始终作为字符串保存
+  var stringFields = ["cid", "pid", "vid", "crpl", "unicastAddress","modelId"];
+  if (stringFields.some(field => path.includes(field))) {
+    value = value.toString();
+  }
+
+  if (lastArrayMatch) {
+    var key = lastArrayMatch[1];
+    var idx = parseInt(lastArrayMatch[2], 10);
+    if (!current[key]) current[key] = [];
+    current[key][idx] = value;
+  } else {
+    current[lastPart] = value;
+  }
 }
 
 
-function prepareSubmit() {
-  updateGlobalJsonFromForm();
-  document.getElementById("new_json").value = JSON.stringify(globalJson, null, 2);
-  
-  // 使用 fetch API 提交表单数据
-  fetch('/cgi-bin/rdcfg.cgi', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(globalJson)
-  }).then(response => {
-    if (response.ok) {
-      // 重定向到主页
-      window.location.href = "/";  // 修改为您的主页路径
-    } else {
-      console.error('Failed to save configuration');
+
+
+
+  function parseMaybeJSON(value) {
+    if (!value) return value;
+    try {
+      return JSON.parse(value);
+    } catch(e) {
+      return value;
     }
-  }).catch(error => {
-    console.error('Error:', error);
-  });
+  }
 
-  return true; // 返回 true 以确保表单提交行为被正确处理
-}
+  function prepareSubmit() {
+    updateGlobalJsonFromForm();
+    document.getElementById("new_json").value = JSON.stringify(globalJson, null, 2);
 
-
-    /*******************************************************
-     * 渲染表单内容
-     *******************************************************/
-
-    function renderForm() {
-      renderCompactTop();
-      renderNetKeysBlock();
-      renderAppKeysBlock();
-      renderGroupsBlock();
-      renderScenesBlock();
-      renderNodesBlock();
-    }
-
-
-
-
-    /*******************************************************
-     * 初始化表单
-     *******************************************************/
-    document.addEventListener("DOMContentLoaded", function() {
-      fetch('prj_cfg.json')
-      .then(response => response.json())
-      .then(data => {
-        globalJson = data;
-        renderForm();
-      });
+    // 使用 fetch API 提交表单数据
+    fetch('/cgi-bin/rdcfg.cgi', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(globalJson)
+    }).then(response => {
+      if (response.ok) {
+        // 重定向到主页
+        window.location.href = "/";  // 修改为您的主页路径
+      } else {
+        console.error('Failed to save configuration');
+      }
+    }).catch(error => {
+      console.error('Error:', error);
     });
+
+    return true; // 返回 true 以确保表单提交行为被正确处理
+  }
+
+  /*******************************************************
+   * 渲染表单内容
+   *******************************************************/
+  function renderForm() {
+    renderCompactTop();
+    renderNetKeysBlock();
+    renderAppKeysBlock();
+    renderGroupsBlock();
+    renderScenesBlock();
+    renderNodesBlock();
+  }
+
+  /*******************************************************
+   * 加载配置文件 prj_cfg.json
+   *******************************************************/
+  function loadConfig() {
+    var xhr = new XMLHttpRequest();
+    xhr.overrideMimeType("application/json");
+    xhr.open("GET", "prj_cfg.json", true);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            var cleanText = xhr.responseText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+            globalJson = JSON.parse(cleanText);
+            console.log("Loaded JSON:", globalJson);
+            renderForm();
+          } catch (e) {
+            console.error("JSON 解析错误:", e);
+            document.getElementById("formContainer").innerHTML =
+              "<div id='errorMsg'>JSON 解析错误: " + e + "</div>";
+          }
+        } else {
+          console.error("加载 prj_cfg.json 失败，状态码:", xhr.status);
+          document.getElementById("formContainer").innerHTML =
+            "<div id='errorMsg'>加载配置文件失败，状态码：" + xhr.status + "</div>";
+        }
+      }
+    };
+    xhr.send(null);
+  }
+  window.onload = loadConfig;
+
+
+
   </script>
 </body>
 </html>
    
 
           
+
