@@ -269,7 +269,6 @@ static cjh_ret_code_t _cjh_init(cjsonData_handler_t* self, void* args)
     self->cjh_get_value_by_path = _cjh_get_value_by_path;
     self->cjh_set_value_by_path = _cjh_set_value_by_path;
     self->cjh_mk_jsonstr = _cjh_mk_jsonstr;
-    self->cjh_init = _cjh_init;
     self->cjh_free = _cjh_free;
 
     
@@ -290,7 +289,10 @@ int cjh_create(cjsonData_handler_t* p, void* args)
         cjh_dbg("Null pointer\n");
         return -1;
     }
+    memset(p, 0, sizeof(cjsonData_handler_t));
+
     
+    p->cjh_init = _cjh_init;
     return (p->cjh_init(p, args) == CJH_RET_OK) ? 0 : -1;
 }
 
