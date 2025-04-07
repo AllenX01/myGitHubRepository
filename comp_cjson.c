@@ -22,7 +22,9 @@ typedef enum
     CJH_RET_KEY_NOT_FOUND,    
     CJH_RET_TYPE_MISMATCH,    
     CJH_RET_BUFFER_TOO_SMALL, 
-    CJH_RET_ALLOC_FAIL        
+    CJH_RET_ALLOC_FAIL,
+    CJH_RET_INVALID_ARG,
+    CJH_RET_PARSE_ERROR,
 } cjh_ret_code_t;
 
 /* Data Types */
@@ -69,67 +71,68 @@ int cjh_create(cjsonData_handler_t* p, void* args);
 #define __________________________________________________________
 #define __________________________________________________________
 
-static cJSON* _cjh_traverse_path(cjsonData_handler_t* self, const char* path, bool create_missing)
+static cJSON* _cjh_traverse_path(cjsonData_handler_t* self, const char* path, bool create_missing) 
 {
-    if (!self || !path || !*path)
+    if (!self || !path || !self->json_parsed) 
     {
-        cjh_dbg("Null pointer or empty path\n");
         return NULL;
     }
-    
+
+    // 显式处理根路径
+    if (strcmp(path, ".") == 0 || strcmp(path, "") == 0) 
+    {
+        return self->json_parsed;
+    }
+
     cJSON* current = self->json_parsed;
     char* path_copy = strdup(path);
-    if (!path_copy)
-    {
-        cjh_dbg("Memory allocation failed\n");
-        return NULL;
-    }
     char* token = strtok(path_copy, ".");
-    
-    while (token != NULL)
+
+    while (token != NULL) 
     {
-        /* Array index handling */
+        // 处理数组索引（例如 "sensors[0]"）
         char* bracket = strchr(token, '[');
-        if (bracket != NULL)
+        if (bracket) 
         {
             *bracket = '\0';
             int index = atoi(bracket + 1);
-            
+
             cJSON* array = cJSON_GetObjectItemCaseSensitive(current, token);
-            if (!array || !cJSON_IsArray(array))
+            if (!array || !cJSON_IsArray(array)) 
             {
-                if (create_missing)
+                if (create_missing) 
                 {
                     array = cJSON_AddArrayToObject(current, token);
-                }
-                else
+                } 
+                else 
                 {
                     free(path_copy);
                     return NULL;
                 }
             }
-            
+
             current = cJSON_GetArrayItem(array, index);
-            if (!current && create_missing)
+            if (!current && create_missing) 
             {
-                while (cJSON_GetArraySize(array) <= index)
+                while (cJSON_GetArraySize(array) <= index) 
                 {
-                    cJSON_AddItemToArray(array, cJSON_CreateNull());
+                    //cJSON_AddNullToArray(array);
+                     cJSON_AddItemToArray(array, cJSON_CreateNull());
                 }
                 current = cJSON_GetArrayItem(array, index);
             }
-        }
-        else
+        } 
+        else 
         {
-            /* Object handling */
+            // 处理对象键
             cJSON* next = cJSON_GetObjectItemCaseSensitive(current, token);
-            if (!next)
+            if (!next) 
             {
-                if (create_missing)
+                if (create_missing) 
                 {
                     next = cJSON_AddObjectToObject(current, token);
-                }
-                else
+                } 
+                else 
                 {
                     free(path_copy);
                     return NULL;
@@ -137,12 +140,14 @@ static cJSON* _cjh_traverse_path(cjsonData_handler_t* self, const char* path, bo
             }
             current = next;
         }
+
         token = strtok(NULL, ".");
     }
-    
+
     free(path_copy);
     return current;
 }
+
 
 /* Getter Implementation */
 static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const char* path, 
@@ -153,7 +158,7 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
         cjh_dbg("Null pointer detected\n");
         return CJH_RET_NULL_PTR;
     }
-    
+
     cJSON* item = _cjh_traverse_path(self, path, false);
     if (!item)
     {
@@ -168,7 +173,7 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
         case CJH_DT_INT:
             if (!cJSON_IsNumber(item))
             {
-                cjh_dbg("Type mismatch: Expected int\n");
+                cjh_dbg("path=%s,Type mismatch: Expected int\n",path);
                 return CJH_RET_TYPE_MISMATCH;
             }
             *(int*)value = item->valueint;
@@ -178,7 +183,7 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
         case CJH_DT_FLOAT:
             if (!cJSON_IsNumber(item))
             {
-                cjh_dbg("Type mismatch: Expected float\n");
+                cjh_dbg("path=%s,Type mismatch: Expected float\n",path);
                 return CJH_RET_TYPE_MISMATCH;
             }
             *(float*)value = item->valuedouble;
@@ -189,7 +194,7 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
         case CJH_DT_BOOL:
             if (!cJSON_IsBool(item))
             {
-                cjh_dbg("Type mismatch: Expected bool\n");
+                cjh_dbg("path=%s,Type mismatch: Expected bool\n",path);
                 return CJH_RET_TYPE_MISMATCH;
             }
             *(bool*)value = cJSON_IsTrue(item);
@@ -200,7 +205,7 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
         case CJH_DT_STRING:
             if (!cJSON_IsString(item))
             {
-                cjh_dbg("Type mismatch: Expected string\n");
+                cjh_dbg("path=%s,Type mismatch: Expected string\n",path);
                 return CJH_RET_TYPE_MISMATCH;
             }
             if (strlen(item->valuestring) >= buf_len)
@@ -216,7 +221,7 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
         {
             if (!cJSON_IsArray(item)) 
             {
-                cjh_dbg("Expected Array, got other type\n");
+                cjh_dbg("path=%s,Expected Array, got other type\n",path);
                 return CJH_RET_TYPE_MISMATCH;
             }
             char* json_str = cJSON_PrintUnformatted(item);
@@ -242,7 +247,7 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
         {
             if (!cJSON_IsObject(item)) 
             {
-                cjh_dbg("Expected Object, got other type\n");
+                cjh_dbg("path=%s,Expected Object, got other type\n",path);
                 return CJH_RET_TYPE_MISMATCH;
             }
             char* json_str = cJSON_PrintUnformatted(item);
@@ -270,7 +275,7 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
         {
             if (!cJSON_IsString(item)) 
             {
-                cjh_dbg("Type mismatch: Expected string\n");
+                cjh_dbg("path=%s,Type mismatch: Expected string\n",path);
                 return CJH_RET_TYPE_MISMATCH;
             }
             
@@ -327,16 +332,19 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
     return CJH_RET_OK;
 }
 
+
+
 /* Setter Implementation */
 static cjh_ret_code_t _cjh_set_value_by_path(cjsonData_handler_t* self, const char* path,
-                                           cjh_data_type_t data_type, void* value, uint16_t buf_len)
+                                           cjh_data_type_t data_type, void* value, uint16_t value_len)
 {
     if (!self || !path)
     {
         cjh_dbg("Null pointer detected\n");
         return CJH_RET_NULL_PTR;
     }
-    
+
+    /* Ensure json_builder exists */
     if (!self->json_builder)
     {
         self->json_builder = cJSON_CreateObject();
@@ -346,43 +354,176 @@ static cjh_ret_code_t _cjh_set_value_by_path(cjsonData_handler_t* self, const ch
             return CJH_RET_ALLOC_FAIL;
         }
     }
-    
-    /* Path parsing logic */
-    cJSON* current = _cjh_traverse_path(self, path, true);
-    if (!current)
+
+    /* Split path into parent path and key */
+    char* path_copy = strdup(path);
+    if (!path_copy)
     {
-        return CJH_RET_INVALID_PATH;
+        cjh_dbg("Path duplication failed\n");
+        return CJH_RET_ALLOC_FAIL;
     }
+
+    char* last_dot = strrchr(path_copy, '.');
+    char* key = last_dot ? last_dot + 1 : path_copy;
+
+    /* Handle root level key */
+    cJSON* parent = self->json_builder;
+    if (last_dot)
+    {
+        *last_dot = '\0';
+        parent = _cjh_traverse_path(self, path_copy, true);
+        if (!parent)
+        {
+            free(path_copy);
+            cjh_dbg("Path traversal failed: %s\n", path);
+            return CJH_RET_INVALID_PATH;
+        }
+    }
+
+    free(path_copy);
+
+
+    #if 1
+    if (self->json_builder) 
+    {
+        char* json_str = cJSON_PrintUnformatted(self->json_builder);
+        cjh_dbg("Full JSON:\n%s\n", json_str);
+        free(json_str);
+    }
+    #endif
     
-    /* Set the value based on the data type */
+    /* Create new item based on data type */
+    cJSON* new_item = NULL;
     switch (data_type)
     {
         case CJH_DT_INT:
-            cJSON_AddNumberToObject(current, path, *(int*)value);
+            new_item = cJSON_CreateNumber(*(int*)value);
+            cjh_dbg("%-24s, CJH_DT_INT(%d), val=%d\n", path, data_type, *(int*)value);
             break;
-        /* ... other cases ... */
+
+        case CJH_DT_FLOAT:
+            new_item = cJSON_CreateNumber(*(float*)value);
+            cjh_dbg("%-24s, CJH_DT_FLOAT(%d), val=%f\n", path, data_type, *(float*)value);
+            break;
+
+        case CJH_DT_BOOL:
+            new_item = cJSON_CreateBool(*(bool*)value);
+            cjh_dbg("%-24s, CJH_DT_BOOL(%d), val=%d\n", path, data_type, *(bool*)value);
+            break;
+
+        case CJH_DT_STRING:
+            if (!value)
+            {
+                cjh_dbg("Null string value\n");
+                return CJH_RET_NULL_PTR;
+            }
+            new_item = cJSON_CreateString((char*)value);
+            cjh_dbg("%-24s, CJH_DT_STRING(%d), val=%s\n", path, data_type, (char*)value);
+            break;
+
+        case CJH_DT_BYTEARRAY:
+        {
+            if (!value || value_len == 0)
+            {
+                cjh_dbg("Invalid byte array\n");
+                return CJH_RET_INVALID_ARG;
+            }
+
+            /* Convert binary to hex string */
+            char* hex_str = malloc(value_len * 2 + 1);
+            if (!hex_str)
+            {
+                cjh_dbg("Hex buffer allocation failed\n");
+                return CJH_RET_ALLOC_FAIL;
+            }
+
+            for (size_t i = 0; i < value_len; i++)
+            {
+                sprintf(hex_str + 2*i, "%02X", ((uint8_t*)value)[i]);
+            }
+            hex_str[value_len * 2] = '\0';
+
+            new_item = cJSON_CreateString(hex_str);
+            free(hex_str);
+
+            cjh_dbg("%-24s, CJH_DT_BYTEARRAY(%d), len=%u, val=", path, data_type, value_len);
+            for (size_t i = 0; i < value_len; i++) printf("%02X ", ((uint8_t*)value)[i]);
+            printf("\n");
+            break;
+        }
+
+        case CJH_DT_OBJECT:
+        case CJH_DT_ARRAY:
+        {
+            if (!value)
+            {
+                cjh_dbg("Null JSON value\n");
+                return CJH_RET_NULL_PTR;
+            }
+
+            /* Parse JSON string */
+            new_item = cJSON_Parse((char*)value);
+            if (!new_item)
+            {
+                cjh_dbg("JSON parse failed: %s\n", (char*)value);
+                return CJH_RET_PARSE_ERROR;
+            }
+
+            /* Verify type matches */
+            if ((data_type == CJH_DT_OBJECT && !cJSON_IsObject(new_item)) ||
+                (data_type == CJH_DT_ARRAY && !cJSON_IsArray(new_item)))
+            {
+                cJSON_Delete(new_item);
+                cjh_dbg("Type mismatch: Expected %s\n", 
+                       data_type == CJH_DT_OBJECT ? "Object" : "Array");
+                return CJH_RET_TYPE_MISMATCH;
+            }
+
+            cjh_dbg("%-24s, CJH_DT_%s(%d), val=%s\n", 
+                   path, 
+                   data_type == CJH_DT_OBJECT ? "OBJECT" : "ARRAY",
+                   data_type,
+                   (char*)value);
+            break;
+        }
+
         default:
             cjh_dbg("Unknown data type: %d\n", data_type);
             return CJH_RET_KO;
     }
+
+    if (!new_item)
+    {
+        cjh_dbg("Item creation failed\n");
+        return CJH_RET_ALLOC_FAIL;
+    }
+
+    /* Replace existing or add new */
+    cJSON_DeleteItemFromObject(parent, key);
     
+    cJSON_AddItemToObject(parent, key, new_item);
+
     return CJH_RET_OK;
 }
 
+
+
+
+
 cjh_ret_code_t _cjh_mk_jsonstr(cjsonData_handler_t* self, char* json_str, uint16_t buf_len)
-{
+{//每次调用这个函数，说明本次组装的json数据完毕，序列化后释放json_builder和encoded_str指针
     if (!self || !self->json_builder) 
     {
         return CJH_RET_KO;
     }
 
-    // Free previous encoded string
-    if (self->encoded_str) 
-    {
-        free(self->encoded_str);
-    }
-
+    #if 0
     self->encoded_str = cJSON_PrintUnformatted(self->json_builder);
+    #else
+    self->encoded_str = cJSON_Print(self->json_builder);
+    #endif
+    cjh_dbg("The output json data is:\n%s \n",json_str);    
+
     if (!self->encoded_str)
     {
         return CJH_RET_ALLOC_FAIL;
@@ -390,6 +531,22 @@ cjh_ret_code_t _cjh_mk_jsonstr(cjsonData_handler_t* self, char* json_str, uint16
     
     strncpy(json_str, self->encoded_str, buf_len - 1);
     json_str[buf_len - 1] = '\0';
+
+    
+    // Free previous encoded string
+    if (self->encoded_str) 
+    {
+        free(self->encoded_str);
+        self->encoded_str = NULL;
+    } 
+
+    if (self->json_builder) 
+    {
+        free(self->json_builder);
+        self->json_builder = NULL;
+    } 
+
+    
     
     return CJH_RET_OK;
 }
@@ -430,7 +587,6 @@ static cjh_ret_code_t _cjh_init(cjsonData_handler_t* self, char* raw_json_in)
         cjh_dbg("Null handler\n");
         return CJH_RET_NULL_PTR;
     }
-
     
     if(raw_json_in)
     {
@@ -440,7 +596,6 @@ static cjh_ret_code_t _cjh_init(cjsonData_handler_t* self, char* raw_json_in)
             return CJH_RET_KO;
     }
 
-    
     /*
     if (!self->json_builder)
     {
@@ -451,7 +606,6 @@ static cjh_ret_code_t _cjh_init(cjsonData_handler_t* self, char* raw_json_in)
         }
     }
     */
-    
 
     self->cjh_get_value_by_path = _cjh_get_value_by_path;
     self->cjh_set_value_by_path = _cjh_set_value_by_path;
@@ -539,70 +693,55 @@ const char* jsondata =
 
     cjsonData_handler_t handler, *p;
     p = &handler;
+    char varstr[1024]={0};
+    int varint;
+    bool varbool;
+    float varfloat;
     if (cjh_create(&handler, (void*)jsondata) != 0)
     {
         fprintf(stderr, "Handler creation failed\n");
         return -1;
     }
-    int varint;
+    #if 0
     int ret = handler.cjh_get_value_by_path(&handler, "status.battery", CJH_DT_INT, &varint,  sizeof(varint) );
 
 
-    bool varbool;
     ret = handler.cjh_get_value_by_path(&handler, "sensors[0].alarm", CJH_DT_BOOL, &varbool,  sizeof(varbool) );
 
     
-    float varfloat;
     ret = handler.cjh_get_value_by_path(&handler, "sensors[0].value", CJH_DT_FLOAT, &varfloat,  sizeof(varfloat) );
 
 
-    char varstr[512]={0};
     ret = handler.cjh_get_value_by_path(&handler, "sensors[0].type", CJH_DT_STRING, varstr,  sizeof(varstr) );
+
+    ret = handler.cjh_get_value_by_path(&handler, "sensors[1]", CJH_DT_OBJECT, varstr,  sizeof(varstr) );
+
 
     ret = handler.cjh_get_value_by_path(&handler, "commands[0]", CJH_DT_OBJECT, varstr,  sizeof(varstr) );
 
     ret = handler.cjh_get_value_by_path(&handler, "security.keys", CJH_DT_ARRAY, varstr,  sizeof(varstr) );
     ret = handler.cjh_get_value_by_path(&handler, "security.keys[0].value", CJH_DT_BYTEARRAY, varstr,  sizeof(varstr) );
+    ret = handler.cjh_get_value_by_path(&handler, "security.keys[0].value", CJH_DT_STRING, varstr,  sizeof(varstr) );
 
+    #endif
 
-/*
-    int brightness = 80;
-    cjh_ret_code_t ret = handler.cjh_set_value_by_path(
-        &handler, 
-        "device.display.brightness", 
-        CJH_DT_INT, 
-        &brightness, 
-        0
-    );
     
-    if (ret != CJH_RET_OK)
-    {
-        fprintf(stderr, "Set failed: %d\n", ret);
-    }
+
+    char json_str_out[512]={0};
+    //handler.cjh_get_value_by_path(&handler, ".", CJH_DT_OBJECT, varstr,  sizeof(varstr) );
+    
+    varint = 77;            p->cjh_set_value_by_path(p, "intkey",   CJH_DT_INT,     &varint,    sizeof(varint));
+    varbool= true;          p->cjh_set_value_by_path(p, "boolkey",  CJH_DT_BOOL,    &varbool,   sizeof(varbool));
+    varfloat = 77.2233;     p->cjh_set_value_by_path(p, "floatkey", CJH_DT_FLOAT,   &varfloat,  sizeof(varfloat));
+    const char* convarstr = "77string"; p->cjh_set_value_by_path(p, "stringkey", CJH_DT_STRING, (void*)convarstr, strlen(convarstr)+1);
 
 
-    int read_val;
-    ret = handler.cjh_get_value_by_path(
-        &handler, 
-        "device.display.brightness", 
-        CJH_DT_INT, 
-        &read_val, 
-        0
-    );
-    if (ret == CJH_RET_OK)
-    {
-        printf("Brightness: %d\n", read_val);
-    }
+
+    p->cjh_mk_jsonstr(p, json_str_out, sizeof(json_str_out));
 
 
-    char json_str[512];
-    ret = handler.cjh_mk_jsonstr(&handler, json_str, sizeof(json_str));
-    if (ret == CJH_RET_OK)
-    {
-        printf("Generated JSON:\n%s\n", json_str);
-    }
 
-*/
+
     handler.cjh_free(&handler);
     
     return 0;
