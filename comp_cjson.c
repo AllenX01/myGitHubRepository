@@ -5,6 +5,8 @@
 #include    <stdbool.h>
 #include    <unistd.h>
 #include	<stdint.h>
+#include    <ctype.h>
+
 #include    "cJSON.h"
 
 #define __________________________________________________________
@@ -56,7 +58,7 @@ struct cjsonData_handler
     
     cjh_ret_code_t (*cjh_mk_jsonstr)(cjsonData_handler_t* self, char* json_str, uint16_t buf_len);
     
-    cjh_ret_code_t (*cjh_init)(cjsonData_handler_t* self,  char *raw_json_in);
+    cjh_ret_code_t (*cjh_init)(cjsonData_handler_t* self, char* raw_json_in);
     
     cjh_ret_code_t (*cjh_free)(cjsonData_handler_t* self);
 };
@@ -159,6 +161,8 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
         return CJH_RET_KEY_NOT_FOUND;
     }
     
+    memset(value, 0, buf_len);
+    
     switch (data_type)
     {
         case CJH_DT_INT:
@@ -168,6 +172,7 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
                 return CJH_RET_TYPE_MISMATCH;
             }
             *(int*)value = item->valueint;
+            cjh_dbg("%-24s, CJH_DT_INT(%d), val=%d\n",path,data_type,*(int*)value);
             break;
             
         case CJH_DT_FLOAT:
@@ -177,17 +182,149 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
                 return CJH_RET_TYPE_MISMATCH;
             }
             *(float*)value = item->valuedouble;
+            
+            cjh_dbg("%-24s, CJH_DT_FLOAT(%d), val=%f\n",path,data_type,*(float*)value);
             break;
             
-        /* ... similar checks for other types ... */
+        case CJH_DT_BOOL:
+            if (!cJSON_IsBool(item))
+            {
+                cjh_dbg("Type mismatch: Expected bool\n");
+                return CJH_RET_TYPE_MISMATCH;
+            }
+            *(bool*)value = cJSON_IsTrue(item);
             
+            cjh_dbg("%-24s, CJH_DT_BOOL(%d), val=%d(%s)\n",path,data_type,*(bool*)value, *(bool*)value ? "true" : "false");
+            break;
+            
+        case CJH_DT_STRING:
+            if (!cJSON_IsString(item))
+            {
+                cjh_dbg("Type mismatch: Expected string\n");
+                return CJH_RET_TYPE_MISMATCH;
+            }
+            if (strlen(item->valuestring) >= buf_len)
+            {
+                cjh_dbg("Buffer too small for string\n");
+                return CJH_RET_BUFFER_TOO_SMALL;
+            }
+            strcpy((char*)value, item->valuestring);
+            cjh_dbg("%-24s, CJH_DT_STRING(%d), val=%s\n",path,data_type,(char*)value);
+            break;
+            
+        case CJH_DT_ARRAY:
+        {
+            if (!cJSON_IsArray(item)) 
+            {
+                cjh_dbg("Expected Array, got other type\n");
+                return CJH_RET_TYPE_MISMATCH;
+            }
+            char* json_str = cJSON_PrintUnformatted(item);
+            //char* json_str = cJSON_Print(item);
+            if (!json_str)
+            {
+                return CJH_RET_ALLOC_FAIL;
+            }
+            if (strlen(json_str) >= buf_len)
+            {
+                free(json_str);
+                cjh_dbg("Buffer too small for JSON\n");
+                return CJH_RET_BUFFER_TOO_SMALL;
+            }
+            strcpy((char*)value, json_str);
+            free(json_str);
+            
+            cjh_dbg("%-24s, CJH_DT_ARRAY(%d), val=%s\n",path,data_type,(char*)value);
+            
+            break;
+        }            
+        case CJH_DT_OBJECT:
+        {
+            if (!cJSON_IsObject(item)) 
+            {
+                cjh_dbg("Expected Object, got other type\n");
+                return CJH_RET_TYPE_MISMATCH;
+            }
+            char* json_str = cJSON_PrintUnformatted(item);
+            //char* json_str = cJSON_Print(item);
+            if (!json_str)
+            {
+                return CJH_RET_ALLOC_FAIL;
+            }
+            if (strlen(json_str) >= buf_len)
+            {
+                free(json_str);
+                cjh_dbg("Buffer too small for JSON\n");
+                return CJH_RET_BUFFER_TOO_SMALL;
+            }
+            strcpy((char*)value, json_str);
+            free(json_str);
+            
+            cjh_dbg("%-24s, CJH_DT_OBJECT(%d), val=%s\n",path,data_type,(char*)value);
+            
+            break;
+        }
+
+
+        case CJH_DT_BYTEARRAY: 
+        {
+            if (!cJSON_IsString(item)) 
+            {
+                cjh_dbg("Type mismatch: Expected string\n");
+                return CJH_RET_TYPE_MISMATCH;
+            }
+            
+            const char* hex_str = item->valuestring;
+            size_t hex_len = strlen(hex_str);
+            
+            // 校验十六进制字符串长度是否为偶数
+            if (hex_len % 2 != 0) 
+            {
+                cjh_dbg("Hex string length must be even (got %zu)\n", hex_len);
+                return CJH_RET_TYPE_MISMATCH;
+            }
+            
+            // 校验缓冲区大小
+            size_t required_len = hex_len / 2;
+            if (buf_len < required_len) 
+            {
+                cjh_dbg("Buffer too small: need %zu, got %u\n", required_len, buf_len);
+                return CJH_RET_BUFFER_TOO_SMALL;
+            }
+
+            // 校验字符合法性
+            for (size_t i = 0; i < hex_len; i++) 
+            {
+                if (!isxdigit(hex_str[i])) 
+                {
+                    cjh_dbg("Invalid hex char: %c\n", hex_str[i]);
+                    return CJH_RET_TYPE_MISMATCH;
+                }
+            }
+            
+            // 安全转换
+            for (size_t i = 0; i < required_len; i++) 
+            {
+                if (sscanf(hex_str + 2*i, "%2hhx", &((uint8_t*)value)[i]) != 1) 
+                {
+                    cjh_dbg("Hex conversion failed at position %zu\n", i);
+                    return CJH_RET_KO;
+                }
+            }
+            
+            cjh_dbg("%-24s, CJH_DT_BYTEARRAY(%d), val= ",path,data_type);
+            for(size_t i=0; i<required_len; i++) printf("%X ", ((uint8_t*)(value))[i]); printf("\n");
+            
+            break;
+        }
+
+        
         default:
             cjh_dbg("Unknown data type: %d\n", data_type);
             return CJH_RET_KO;
     }
     
     return CJH_RET_OK;
-    
 }
 
 /* Setter Implementation */
@@ -284,7 +421,6 @@ static cjh_ret_code_t _cjh_free(cjsonData_handler_t* self)
     
     return CJH_RET_OK;
 }
-
 
 /* Initialize and Free */
 static cjh_ret_code_t _cjh_init(cjsonData_handler_t* self, char* raw_json_in)
@@ -401,39 +537,33 @@ const char* jsondata =
 "}";
 
 
-    cjsonData_handler_t handler;
+    cjsonData_handler_t handler, *p;
+    p = &handler;
     if (cjh_create(&handler, (void*)jsondata) != 0)
     {
         fprintf(stderr, "Handler creation failed\n");
         return -1;
     }
     int varint;
-    int ret = handler.cjh_get_value_by_path(&handler, "status.battery", CJH_DT_INT, &varint,  0 );
-    if (ret == CJH_RET_OK)
-    {
-        printf("varint: %d\n", varint);
-    }  
+    int ret = handler.cjh_get_value_by_path(&handler, "status.battery", CJH_DT_INT, &varint,  sizeof(varint) );
+
 
     bool varbool;
-    ret = handler.cjh_get_value_by_path(&handler, "sensors[0].alarm", CJH_DT_BOOL, &varbool,  0 );
-    if (ret == CJH_RET_OK)
-    {
-        printf("varbool: %s\n", (varbool) ? "true" : "false");
-    } 
+    ret = handler.cjh_get_value_by_path(&handler, "sensors[0].alarm", CJH_DT_BOOL, &varbool,  sizeof(varbool) );
+
     
     float varfloat;
-    ret = handler.cjh_get_value_by_path(&handler, "sensors[0].value", CJH_DT_FLOAT, &varfloat,  0 );
-    if (ret == CJH_RET_OK)
-    {
-        printf("varfloat: %f\n", varfloat);
-    }  
+    ret = handler.cjh_get_value_by_path(&handler, "sensors[0].value", CJH_DT_FLOAT, &varfloat,  sizeof(varfloat) );
 
-    char varstr[512];
-    ret = handler.cjh_get_value_by_path(&handler, "sensors[0].type", CJH_DT_STRING, &varstr,  0 );
-    if (ret == CJH_RET_OK)
-    {
-        printf("varstr: %s\n", varstr);
-    }  
+
+    char varstr[512]={0};
+    ret = handler.cjh_get_value_by_path(&handler, "sensors[0].type", CJH_DT_STRING, varstr,  sizeof(varstr) );
+
+    ret = handler.cjh_get_value_by_path(&handler, "commands[0]", CJH_DT_OBJECT, varstr,  sizeof(varstr) );
+
+    ret = handler.cjh_get_value_by_path(&handler, "security.keys", CJH_DT_ARRAY, varstr,  sizeof(varstr) );
+    ret = handler.cjh_get_value_by_path(&handler, "security.keys[0].value", CJH_DT_BYTEARRAY, varstr,  sizeof(varstr) );
+
 
 /*
     int brightness = 80;
@@ -480,5 +610,6 @@ const char* jsondata =
 
 #define __________________________________________________________
 #define __________________________________________________________
+
 
 
