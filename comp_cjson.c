@@ -7,10 +7,8 @@
 #include	<stdint.h>
 #include    "cJSON.h"
 
-
 #define __________________________________________________________
 #define __________________________________________________________
-
 
 /* Error Codes */
 typedef enum 
@@ -56,10 +54,9 @@ struct cjsonData_handler
     cjh_ret_code_t (*cjh_set_value_by_path)(cjsonData_handler_t* self, const char* path,
                                           cjh_data_type_t data_type, void* value, uint16_t buf_len);
     
-    cjh_ret_code_t (*cjh_mk_jsonstr)(cjsonData_handler_t* self, char* json_str);
-
+    cjh_ret_code_t (*cjh_mk_jsonstr)(cjsonData_handler_t* self, char* json_str, uint16_t buf_len);
     
-    cjh_ret_code_t (*cjh_init)(cjsonData_handler_t* self, void* args);
+    cjh_ret_code_t (*cjh_init)(cjsonData_handler_t* self,  char *raw_json_in);
     
     cjh_ret_code_t (*cjh_free)(cjsonData_handler_t* self);
 };
@@ -67,13 +64,8 @@ struct cjsonData_handler
 /* Constructor */
 int cjh_create(cjsonData_handler_t* p, void* args);
 
-
-
 #define __________________________________________________________
 #define __________________________________________________________
-
-
-
 
 static cJSON* _cjh_traverse_path(cjsonData_handler_t* self, const char* path, bool create_missing)
 {
@@ -85,6 +77,11 @@ static cJSON* _cjh_traverse_path(cjsonData_handler_t* self, const char* path, bo
     
     cJSON* current = self->json_parsed;
     char* path_copy = strdup(path);
+    if (!path_copy)
+    {
+        cjh_dbg("Memory allocation failed\n");
+        return NULL;
+    }
     char* token = strtok(path_copy, ".");
     
     while (token != NULL)
@@ -115,7 +112,7 @@ static cJSON* _cjh_traverse_path(cjsonData_handler_t* self, const char* path, bo
             {
                 while (cJSON_GetArraySize(array) <= index)
                 {
-                    //cJSON_AddNullToArray(array);
+                    cJSON_AddItemToArray(array, cJSON_CreateNull());
                 }
                 current = cJSON_GetArrayItem(array, index);
             }
@@ -173,16 +170,25 @@ static cjh_ret_code_t _cjh_get_value_by_path(cjsonData_handler_t* self, const ch
             *(int*)value = item->valueint;
             break;
             
+        case CJH_DT_FLOAT:
+            if (!cJSON_IsNumber(item))
+            {
+                cjh_dbg("Type mismatch: Expected float\n");
+                return CJH_RET_TYPE_MISMATCH;
+            }
+            *(float*)value = item->valuedouble;
+            break;
+            
         /* ... similar checks for other types ... */
             
         default:
             cjh_dbg("Unknown data type: %d\n", data_type);
             return CJH_RET_KO;
     }
+    
     return CJH_RET_OK;
+    
 }
-
-                                           
 
 /* Setter Implementation */
 static cjh_ret_code_t _cjh_set_value_by_path(cjsonData_handler_t* self, const char* path,
@@ -205,25 +211,51 @@ static cjh_ret_code_t _cjh_set_value_by_path(cjsonData_handler_t* self, const ch
     }
     
     /* Path parsing logic */
-    // ... (完整路径处理逻辑，使用Allman风格)
+    cJSON* current = _cjh_traverse_path(self, path, true);
+    if (!current)
+    {
+        return CJH_RET_INVALID_PATH;
+    }
+    
+    /* Set the value based on the data type */
+    switch (data_type)
+    {
+        case CJH_DT_INT:
+            cJSON_AddNumberToObject(current, path, *(int*)value);
+            break;
+        /* ... other cases ... */
+        default:
+            cjh_dbg("Unknown data type: %d\n", data_type);
+            return CJH_RET_KO;
+    }
     
     return CJH_RET_OK;
 }
 
-
-
-cjh_ret_code_t _cjh_mk_jsonstr(cjsonData_handler_t* self, char* json_str)
+cjh_ret_code_t _cjh_mk_jsonstr(cjsonData_handler_t* self, char* json_str, uint16_t buf_len)
 {
-    if (!self || !self->json_builder) return CJH_RET_KO;
+    if (!self || !self->json_builder) 
+    {
+        return CJH_RET_KO;
+    }
 
     // Free previous encoded string
-    if (self->encoded_str) free(self->encoded_str);
+    if (self->encoded_str) 
+    {
+        free(self->encoded_str);
+    }
 
     self->encoded_str = cJSON_PrintUnformatted(self->json_builder);
+    if (!self->encoded_str)
+    {
+        return CJH_RET_ALLOC_FAIL;
+    }
+    
+    strncpy(json_str, self->encoded_str, buf_len - 1);
+    json_str[buf_len - 1] = '\0';
     
     return CJH_RET_OK;
 }
-
 
 static cjh_ret_code_t _cjh_free(cjsonData_handler_t* self)
 {
@@ -235,24 +267,27 @@ static cjh_ret_code_t _cjh_free(cjsonData_handler_t* self)
     if (self->json_parsed)
     {
         cJSON_Delete(self->json_parsed);
+        self->json_parsed = NULL;
     }
+    
     if (self->json_builder)
     {
         cJSON_Delete(self->json_builder);
+        self->json_builder = NULL;
     }
+    
     if (self->encoded_str)
     {
         free(self->encoded_str);
+        self->encoded_str = NULL;
     }
+    
     return CJH_RET_OK;
 }
 
 
-
-
-
 /* Initialize and Free */
-static cjh_ret_code_t _cjh_init(cjsonData_handler_t* self, void* args)
+static cjh_ret_code_t _cjh_init(cjsonData_handler_t* self, char* raw_json_in)
 {
     if (!self)
     {
@@ -260,28 +295,43 @@ static cjh_ret_code_t _cjh_init(cjsonData_handler_t* self, void* args)
         return CJH_RET_NULL_PTR;
     }
 
+    
+    if(raw_json_in)
+    {
+        self->json_parsed = cJSON_Parse(raw_json_in);
+
+        if(self->json_parsed == NULL)
+            return CJH_RET_KO;
+    }
+
+    
+    /*
     if (!self->json_builder)
     {
         self->json_builder = cJSON_CreateObject();
+        if (!self->json_builder)
+        {
+            return CJH_RET_ALLOC_FAIL;
+        }
     }
-
+    */
+    
 
     self->cjh_get_value_by_path = _cjh_get_value_by_path;
     self->cjh_set_value_by_path = _cjh_set_value_by_path;
     self->cjh_mk_jsonstr = _cjh_mk_jsonstr;
+    //self->cjh_init = _cjh_init;
     self->cjh_free = _cjh_free;
-
     
-    self->json_parsed = NULL;
-    self->json_builder = cJSON_CreateObject();
-    self->encoded_str = NULL;
-    return self->json_builder ? CJH_RET_OK : CJH_RET_ALLOC_FAIL;
+
+    return CJH_RET_OK ;
+    
 }
 
 #define __________________________________________________________
 #define __________________________________________________________
 
-//construction function
+/* Construction Function */
 int cjh_create(cjsonData_handler_t* p, void* args)
 {
     if (!p)
@@ -291,22 +341,101 @@ int cjh_create(cjsonData_handler_t* p, void* args)
     }
     memset(p, 0, sizeof(cjsonData_handler_t));
 
-    
     p->cjh_init = _cjh_init;
-    return (p->cjh_init(p, args) == CJH_RET_OK) ? 0 : -1;
+    return (p->cjh_init(p, (char*)args) == CJH_RET_OK) ? 0 : -1;
 }
-
 
 int main()
 {
+
+const char* jsondata = 
+"{"
+"  \"deviceId\": \"BLE-Gateway-01\","
+"  \"timestamp\": 1717032468,"
+"  \"status\": {"
+"    \"online\": true,"
+"    \"battery\": 78,"
+"    \"rssi\": -45,"
+"    \"firmware\": \"v2.3.1\""
+"  },"
+"  \"sensors\": ["
+"    {"
+"      \"type\": \"temperature\","
+"      \"value\": 25.6,"
+"      \"unit\": \"°C\","
+"      \"alarm\": false,"
+"      \"location\": {"
+"        \"lat\": 31.2304,"
+"        \"lon\": 121.4737,"
+"        \"alt\": 12.3"
+"      }"
+"    },"
+"    {"
+"      \"type\": \"humidity\","
+"      \"value\": 65.2,"
+"      \"unit\": \"%\","
+"      \"alarm\": false"
+"    }"
+"  ],"
+"  \"commands\": ["
+"    {"
+"      \"cmdId\": \"20240401-001\","
+"      \"op\": \"set\","
+"      \"params\": {"
+"        \"led\": \"on\","
+"        \"brightness\": 80"
+"      },"
+"      \"ttl\": 3600"
+"    }"
+"  ],"
+"  \"security\": {"
+"    \"signature\": \"a1b2c3d4e5f6\","
+"    \"encrypted\": false,"
+"    \"keys\": ["
+"      {"
+"        \"keyId\": \"netKey-01\","
+"        \"value\": \"3FA985DA6D4CA22DA05C7E7A1F11C783\""
+"      }"
+"    ]"
+"  }"
+"}";
+
+
     cjsonData_handler_t handler;
-    if (cjh_create(&handler, NULL) != 0)
+    if (cjh_create(&handler, (void*)jsondata) != 0)
     {
         fprintf(stderr, "Handler creation failed\n");
         return -1;
     }
+    int varint;
+    int ret = handler.cjh_get_value_by_path(&handler, "status.battery", CJH_DT_INT, &varint,  0 );
+    if (ret == CJH_RET_OK)
+    {
+        printf("varint: %d\n", varint);
+    }  
 
-    /* Set values */
+    bool varbool;
+    ret = handler.cjh_get_value_by_path(&handler, "sensors[0].alarm", CJH_DT_BOOL, &varbool,  0 );
+    if (ret == CJH_RET_OK)
+    {
+        printf("varbool: %s\n", (varbool) ? "true" : "false");
+    } 
+    
+    float varfloat;
+    ret = handler.cjh_get_value_by_path(&handler, "sensors[0].value", CJH_DT_FLOAT, &varfloat,  0 );
+    if (ret == CJH_RET_OK)
+    {
+        printf("varfloat: %f\n", varfloat);
+    }  
+
+    char varstr[512];
+    ret = handler.cjh_get_value_by_path(&handler, "sensors[0].type", CJH_DT_STRING, &varstr,  0 );
+    if (ret == CJH_RET_OK)
+    {
+        printf("varstr: %s\n", varstr);
+    }  
+
+/*
     int brightness = 80;
     cjh_ret_code_t ret = handler.cjh_set_value_by_path(
         &handler, 
@@ -321,7 +450,7 @@ int main()
         fprintf(stderr, "Set failed: %d\n", ret);
     }
 
-    /* Get values */
+
     int read_val;
     ret = handler.cjh_get_value_by_path(
         &handler, 
@@ -335,19 +464,19 @@ int main()
         printf("Brightness: %d\n", read_val);
     }
 
-    /* Generate JSON */
+
     char json_str[512];
-    ret = handler.cjh_mk_jsonstr(&handler, json_str);
+    ret = handler.cjh_mk_jsonstr(&handler, json_str, sizeof(json_str));
     if (ret == CJH_RET_OK)
     {
         printf("Generated JSON:\n%s\n", json_str);
     }
 
-    /* Cleanup */
+*/
     handler.cjh_free(&handler);
+    
     return 0;
 }
-
 
 #define __________________________________________________________
 #define __________________________________________________________
